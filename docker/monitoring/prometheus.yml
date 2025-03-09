@@ -1,0 +1,10 @@
+scrape_configs:
+  # Monitoring Docker (via Docker Engine)
+  - job_name: 'docker_engine'
+    static_configs:
+      - targets: ['host.docker.internal:9323']
+
+  # Monitoring des conteneurs via cAdvisor
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']

@@ -1,0 +1,141 @@
+networks:
+  yxplore_network:
+
+services:
+  ############################# Django App ##############################
+  django:
+    build: .
+    container_name: yxplore_app
+    image: yxplore:latest
+    command: python3 manage.py runserver  0.0.0.0:8000 --insecure
+    restart: always
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    volumes:
+      - .:/yxplore
+      - ./docker/yxplore/ssl:/etc/ssl
+    ports:
+      - "8000:8000"
+    networks:
+      - yxplore_network
+
+  ########################### Redis ############################
+#  rediserver:
+#    container_name: redisserver
+#    image: redis
+#    restart: unless-stopped
+#    deploy:
+#      restart_policy:
+#        condition: on-failure
+#    ports:
+#      - "${REDIS_PORT}:6379"
+#    volumes:
+#      - redisData02:/data
+#    entrypoint: redis-server --appendonly yes
+#    healthcheck:
+#      test: ["CMD", "redis-cli", "ping"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#    networks:
+#      - nsandax_arpce
+#
+#  ########################### Celery Worker ############################
+#  celery:
+#    image: arpcev1:latest
+#    restart: unless-stopped
+#    deploy:
+#      restart_policy:
+#        condition: on-failure
+#    command: celery -A ErpProject worker --loglevel=info
+#    environment:
+#      DOCKER_CONTAINER: "${DOCKER_CONTAINER}"
+#      CELERY_BROKER_URL: "${CELERY_BROKER_URL}"
+#      CELERY_RESULT_BACKEND: "${CELERY_RESULT_BACKEND}"
+#    depends_on:
+#      django:
+#        condition: service_started
+#      rediserver:
+#        condition: service_healthy
+#    networks:
+#      - nsandax_arpce
+#
+#  ########################### Elastic Search ############################
+#  elasticsearch:
+#    container_name: elasticsearch_arpce
+#    image: docker.elastic.co/elasticsearch/elasticsearch:5.6.16
+#    restart: unless-stopped
+#    deploy:
+#      restart_policy:
+#        condition: on-failure
+#    environment:
+#      discovery.type: "single-node"
+#      bootstrap.memory_lock: "true"
+#      ES_JAVA_OPTS: "${ES_JAVA_OPTS}"
+#      xpack.security.enabled: "false"
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
+#    volumes:
+#      - esData01:/usr/share/elasticsearch/data
+#    ports:
+#      - "${ES_PORT}:9200"
+#      - "${ES_PORT_TWO}:9300"
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#    networks:
+#      - nsandax_arpce
+#
+#
+#    ########################### Portainer (Gestion et Monitoring Docker) ############################
+#  portainer:
+#    image: portainer/portainer-ce:latest
+#    container_name: portainer
+#    restart: unless-stopped
+#    ports:
+#      - "9443:9443"  #  HTTPS
+#      - "9000:9000"  #  HTTP
+#    volumes:
+#      - /var/run/docker.sock:/var/run/docker.sock
+#      - portainer_data:/data
+#    networks:
+#      - nsandax_arpce
+#
+
+    ########################### Caddy (Reverse Proxy) ############################
+  caddy:
+    image: caddy:latest
+    container_name: caddy_reverse_proxy_yxplore
+    restart: unless-stopped
+    ports:
+      - "443:443"  # HTTPS
+      - "80:80"    # HTTP
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - yxplore_network
+    depends_on:
+      django:
+        condition: service_started
+volumes:
+#  redisData02: {}
+#  esData01: {}
+#  portainer_data: {}
+  caddy_data: {}
+  caddy_config: {}
