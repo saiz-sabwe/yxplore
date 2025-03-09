@@ -92,7 +92,7 @@ RUN pip3 install django-csp==3.7
 RUN pip3 install django-csp-nonce==1.0.0
 
 # Asynchronous system Packages
-RUN pip3 install pika
+#RUN pip3 install pika
 RUN pip3 install gunicorn
 RUN pip3 install uvicorn==0.23.1
 RUN pip3 install asgiref==3.7.2
