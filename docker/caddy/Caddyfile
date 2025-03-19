@@ -1,4 +1,3 @@
 yxplore.com {
     reverse_proxy django:8000
-    tls internal
 }
