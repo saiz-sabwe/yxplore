@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Django
+*.log
+*.pot
+*.pyc
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+static_root/
+local_settings.py
+
+# Migrations (optionnel : garder si tu veux versionner)
+*/migrations/
+!*/migrations/__init__.py
+
+# Environnement virtuel
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Secrets et variables d’environnement
+.env
+.env.*
+.env.**
+
+# VS Code / PyCharm
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Mac OS / Linux / Windows
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+desktop.ini
+
+# import-export temp files
+*.xls
+*.csv

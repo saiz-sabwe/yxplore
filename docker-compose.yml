@@ -1,0 +1,58 @@
+# version: '3.8'
+
+networks:
+  web_network:
+    external: true
+
+#volumes:
+#  pg_data:
+
+services:
+  yxplore_app:
+    build: .
+    container_name: yxplore_app
+    image: yxplore_app:latest
+    command: python3 manage.py runserver  0.0.0.0:8000 --insecure
+    restart: always
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8010:8000"
+    volumes:
+      - .:/app
+      - ./media:/app/media
+#    depends_on:
+#      - pgsql
+    networks:
+      - web_network
+
+
+#  pgsql:
+#    image: postgres:15
+#    restart: always
+#    environment:
+#      POSTGRES_PASSWORD: bright_pass
+#    volumes:
+#      - pg_data:/var/lib/postgresql/data
+#    ports:
+#      - "5432:5432"
+#    networks:
+#      - web_network
+#
+#  adminer:
+#    image: adminer
+#    restart: always
+#    ports:
+#      - "8080:8080"
+#    networks:
+#      - web_network
+
