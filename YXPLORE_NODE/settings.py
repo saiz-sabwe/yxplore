@@ -31,7 +31,6 @@ ALLOWED_HOSTS = []
 # Application definition
 
 FIRST_APPS = [
-    "jet",
     'channels',
     "daphne",
 ]

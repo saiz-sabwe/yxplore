@@ -7,14 +7,14 @@ from django.views import View
 class FlightView(View):
     def get(self, request, param=None):
         if param == "hotel":
-            return self.afficherHotel(request)
+            return self.afficherVols(request)
         else:
             return None
 
     def post(self, request):
         pass
 
-    def afficherHotel(self, request):
+    def afficherVols(self, request):
         context = {
             'title': 'Hotel',
         }
