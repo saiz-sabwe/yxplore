@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Module Profils - YXPLORE</h2>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Gestion des Profils Utilisateurs</h5>
+                    <p class="card-text">
+                        Ce module gère les différents types de profils utilisateurs dans la plateforme YXPLORE :
+                    </p>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="card border-primary">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title text-primary">👤 Clients</h5>
+                                    <p class="card-text">Profils des utilisateurs finaux avec système KYC</p>
+                                    <a href="/admin/ModuleProfils/clientprofile/" class="btn btn-outline-primary">Gérer</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title text-success">🏢 Marchands</h5>
+                                    <p class="card-text">Profils des partenaires commerciaux</p>
+                                    <a href="/admin/ModuleProfils/merchantprofile/" class="btn btn-outline-success">Gérer</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title text-warning">⚙️ Administrateurs</h5>
+                                    <p class="card-text">Profils des administrateurs système</p>
+                                    <a href="/admin/ModuleProfils/adminprofile/" class="btn btn-outline-warning">Gérer</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card border-info">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title text-info">🔐 Validation KYC</h5>
+                                    <p class="card-text">Gestion des validations Know Your Customer</p>
+                                    <a href="/admin/ModuleProfils/kycvalidation/" class="btn btn-outline-info">Gérer KYC</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h6>Fonctionnalités disponibles :</h6>
+                        <ul>
+                            <li>✅ Modèles de données pour chaque type de profil</li>
+                            <li>✅ Interface d'administration Django personnalisée</li>
+                            <li>✅ Système KYC avec statuts et validations</li>
+                            <li>✅ Gestion des documents et métadonnées</li>
+                            <li>✅ Structure de choix avec constantes entières</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

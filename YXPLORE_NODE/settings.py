@@ -146,9 +146,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-LOGIN_URL = '/accounts/login/'          # nom de l’URL ou chemin absolu
-LOGIN_REDIRECT_URL = '/dashboard/'            # où envoyer après login
-LOGOUT_REDIRECT_URL = '/accounts/login/'
+LOGIN_URL = '/profils/login/'          # nom de l'URL ou chemin absolu
+LOGIN_REDIRECT_URL = '/profils/'            # où envoyer après login
+LOGOUT_REDIRECT_URL = '/profils/login/'
 
 STATIC_URL = 'static/'
 PROJECT_ROOT = Path(__file__).resolve().parent

@@ -1,0 +1,31 @@
+/* Style pour le bouton de déconnexion pour qu'il ressemble à un lien dropdown */
+.logout-button {
+    border: none !important;
+    background: none !important;
+    width: 100% !important;
+    text-align: left !important;
+    padding: 0.375rem 1rem !important;
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+    color: var(--bs-dropdown-link-color) !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+}
+
+.logout-button:hover {
+    color: var(--bs-dropdown-link-hover-color) !important;
+    background-color: var(--bs-dropdown-link-hover-bg) !important;
+}
+
+.logout-button:focus {
+    color: var(--bs-dropdown-link-hover-color) !important;
+    background-color: var(--bs-dropdown-link-hover-bg) !important;
+    outline: 0 !important;
+}
+
+/* Style spécifique pour le bouton de déconnexion avec classe bg-danger-soft-hover */
+.logout-button.bg-danger-soft-hover:hover {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    color: #dc3545 !important;
+}
