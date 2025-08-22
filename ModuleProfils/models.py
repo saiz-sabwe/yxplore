@@ -1,81 +1,426 @@
 from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import User
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator, validate_email
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.db.models import Avg, Count, Q
+from django.utils import timezone
+from datetime import timedelta
+from re import compile
 
 
-# ========== EXTENSIONS DU MODÈLE USER ==========
+import uuid
+import os
 
-def get_user_profile(self):
-    """Retourne le profil de l'utilisateur"""
-    if hasattr(self, 'clientprofile_profile'):
-        return self.clientprofile_profile
-    elif hasattr(self, 'merchantprofile_profile'):
-        return self.merchantprofile_profile
-    elif hasattr(self, 'adminprofile_profile'):
-        return self.adminprofile_profile
-    return None
+# ========== FONCTIONS POUR CHEMINS D'UPLOAD DYNAMIQUES ==========
 
-def get_user_type(self):
-    """Retourne le type d'utilisateur"""
-    if hasattr(self, 'clientprofile_profile'):
-        return 'client'
-    elif hasattr(self, 'merchantprofile_profile'):
-        return 'merchant'
-    elif hasattr(self, 'adminprofile_profile'):
-        return 'admin'
-    return None
-
-def is_client(self):
-    """Vérifie si l'utilisateur est un client"""
-    return hasattr(self, 'clientprofile_profile')
-
-def is_merchant(self):
-    """Vérifie si l'utilisateur est un marchand"""
-    return hasattr(self, 'merchantprofile_profile')
-
-def is_admin_user(self):
-    """Vérifie si l'utilisateur est un administrateur"""
-    return hasattr(self, 'adminprofile_profile')
-
-def get_display_name(self):
-    """Retourne le nom d'affichage de l'utilisateur"""
-    profile = self.get_user_profile()
-    if profile:
-        if hasattr(profile, 'get_full_name'):
-            return profile.get_full_name()
-        elif hasattr(profile, 'get_company_display_name'):
-            return profile.get_company_display_name()
-        elif hasattr(profile, 'get_admin_display_name'):
-            return profile.get_admin_display_name()
+def client_document_path(instance, filename):
+    """
+    Chemin pour les documents des clients avec UUIDs
     
-    # Fallback sur first_name + last_name ou username
-    full_name = f"{self.first_name} {self.last_name}".strip()
-    return full_name or self.username
+    Exemples de chemins générés :
+    - kyc/clients/a1b2c3d4-e5f6-7890-abcd-ef1234567890.pdf
+    - kyc/clients/9876fedc-ba98-7654-3210-fedcba987654.jpg
+    """
+    # Récupérer l'extension du fichier
+    ext = os.path.splitext(filename)[1]
+    # Générer un UUID unique
+    unique_id = str(uuid.uuid4())
+    # Retourner le chemin complet avec UUID
+    return f'kyc/clients/{unique_id}{ext}'
 
-def get_kyc_status(self):
-    """Retourne le statut KYC de l'utilisateur"""
-    profile = self.get_user_profile()
-    if profile and hasattr(profile, 'kyc_status'):
-        return profile.kyc_status
-    return None
+def merchant_document_path(instance, filename):
+    """
+    Chemin pour les documents des marchands avec UUIDs
+    
+    Exemples de chemins générés :
+    - kyc/merchants/a1b2c3d4-e5f6-7890-abcd-ef1234567890.pdf
+    - kyc/merchants/9876fedc-ba98-7654-3210-fedcba987654.jpg
+    """
+    # Récupérer l'extension du fichier
+    ext = os.path.splitext(filename)[1]
+    # Générer un UUID unique
+    unique_id = str(uuid.uuid4())
+    # Retourner le chemin complet avec UUID
+    return f'kyc/merchants/{unique_id}{ext}'
 
-def is_kyc_approved(self):
-    """Vérifie si le KYC de l'utilisateur est approuvé"""
-    profile = self.get_user_profile()
-    if profile and hasattr(profile, 'is_kyc_approved'):
-        return profile.is_kyc_approved()
-    return False
 
-# Ajouter les méthodes au modèle User
-User.add_to_class('get_user_profile', get_user_profile)
-User.add_to_class('get_user_type', get_user_type)
-User.add_to_class('is_client', is_client)
-User.add_to_class('is_merchant', is_merchant)
-User.add_to_class('is_admin_user', is_admin_user)
-User.add_to_class('get_display_name', get_display_name)
-User.add_to_class('get_kyc_status', get_kyc_status)
-User.add_to_class('is_kyc_approved', is_kyc_approved)
+# ========== CLASSE UTILITAIRE POUR GESTION DES UPLOADS ==========
+
+class FileUploadManager:
+    """Gestionnaire d'upload de fichiers avec gestion automatique des mises à jour"""
+    
+    @staticmethod
+    def update_file_field(instance, field_name, new_file, old_file=None):
+        """
+        Met à jour un champ de fichier avec gestion automatique des anciens fichiers
+        
+        Args:
+            instance: Instance du modèle
+            field_name: Nom du champ de fichier
+            new_file: Nouveau fichier uploadé
+            old_file: Ancien fichier (optionnel)
+        """
+        if new_file:
+            # Supprimer l'ancien fichier s'il existe
+            if old_file and hasattr(old_file, 'storage') and hasattr(old_file, 'name'):
+                try:
+                    old_file.storage.delete(old_file.name)
+                except Exception as e:
+                    print(f"Erreur lors de la suppression de l'ancien fichier: {e}")
+            
+            # Assigner le nouveau fichier
+            setattr(instance, field_name, new_file)
+            return True
+        return False
+    
+    @staticmethod
+    def update_multiple_files(instance, file_data):
+        """
+        Met à jour plusieurs champs de fichiers en une fois
+        
+        Args:
+            instance: Instance du modèle
+            file_data: Dict avec {field_name: new_file}
+        """
+        updated_fields = []
+        for field_name, new_file in file_data.items():
+            if new_file and hasattr(instance, field_name):
+                old_file = getattr(instance, field_name, None)
+                if FileUploadManager.update_file_field(instance, field_name, new_file, old_file):
+                    updated_fields.append(field_name)
+        return updated_fields
+    
+    @staticmethod
+    def delete_file_field(instance, field_name):
+        """Supprime un fichier et vide le champ"""
+        current_file = getattr(instance, field_name)
+        if current_file and hasattr(current_file, 'storage') and hasattr(current_file, 'name'):
+            try:
+                current_file.storage.delete(current_file.name)
+                setattr(instance, field_name, None)
+                return True
+            except Exception as e:
+                print(f"Erreur lors de la suppression du fichier: {e}")
+        return False
+    
+    @staticmethod
+    def get_file_info(instance, field_name):
+        """Retourne les informations d'un fichier"""
+        file_obj = getattr(instance, field_name)
+        if file_obj:
+            return {
+                'name': file_obj.name,
+                'url': file_obj.url,
+                'size': file_obj.size,
+                'exists': True
+            }
+        return {'exists': False}
+    
+    @staticmethod
+    def get_all_files_info(instance, file_fields):
+        """Retourne les informations de tous les champs de fichiers"""
+        files_info = {}
+        for field_name in file_fields:
+            files_info[field_name] = FileUploadManager.get_file_info(instance, field_name)
+        return files_info
+
+
+# ========== CONSTANTES ==========
+
+# Types de profil
+PROFILE_TYPE_CLIENT = 'client'
+PROFILE_TYPE_MERCHANT = 'merchant'
+PROFILE_TYPE_ADMIN = 'admin'
+
+# Classes de profil
+PROFILE_CLASS_CLIENT = 'ClientProfile'
+PROFILE_CLASS_MERCHANT = 'MerchantProfile'
+PROFILE_CLASS_ADMIN = 'AdminProfile'
+
+# ========== EXEMPLES D'UTILISATION ==========
+"""
+Exemples d'utilisation avec les méthodes statiques :
+
+# Approche recommandée : UserProfileManager (plus simple et cohérent)
+user_type = UserProfileManager.determine_user_type(user)
+primary_profile = UserProfileManager.get_primary_profile(user)
+display_name = UserProfileManager.get_user_display_name(user)
+capabilities = UserProfileManager.get_user_capabilities(user)
+
+# Vérifier les fonctionnalités KYC
+if UserProfileManager.user_has_kyc_features(user):
+    kyc_status = UserProfileManager.get_user_kyc_status(user)
+    is_approved = UserProfileManager.is_user_kyc_approved(user)
+
+# Alternative : ProfileUtils (classe utilitaire générale)
+user_type = ProfileUtils.get_user_type(user)  # 'client', 'merchant', ou 'admin'
+display_name = ProfileUtils.get_display_name(user)
+kyc_status = ProfileUtils.get_kyc_status(user)
+is_approved = ProfileUtils.is_kyc_approved(user)
+
+# Approche spécifique par modèle (pour des cas particuliers)
+# Pour les clients
+if ClientProfile.user_has_profile(user):
+    client_profile = ClientProfile.get_profile_for_user(user)
+    client_name = ClientProfile.get_user_display_name(user)
+    client_kyc = ClientProfile.get_user_kyc_status(user)
+    is_client_approved = ClientProfile.is_user_kyc_approved(user)
+
+# Pour les marchands
+if MerchantProfile.user_has_profile(user):
+    merchant_profile = MerchantProfile.get_profile_for_user(user)
+    merchant_name = MerchantProfile.get_user_display_name(user)
+    merchant_kyc = MerchantProfile.get_user_kyc_status(user)
+    is_merchant_approved = MerchantProfile.is_user_kyc_approved(user)
+
+# Pour les admins
+if AdminProfile.user_has_profile(user):
+    admin_profile = AdminProfile.get_profile_for_user(user)
+    admin_name = AdminProfile.get_user_display_name(user)
+    can_validate = AdminProfile.user_can_validate_kyc(user)
+
+# Gestion des validations KYC (sans __class__.__name__)
+# Création d'une validation
+validation = KYCValidation.create_validation(profile, kyc_level, admin_user)
+
+# Récupération du profil depuis une validation
+profile = validation.get_profile_instance()
+
+# Utilisation des méthodes statiques utilitaires de KYCValidation
+profile_type = KYCValidation.determine_profile_type(profile_instance)
+profile = KYCValidation.get_profile_by_type_and_id(profile_type, profile_id)
+"""
+
+# ========== UTILITAIRES DE PROFIL ==========
+
+class ProfileUtils:
+    """Utilitaires statiques pour la gestion des profils utilisateur"""
+    
+    @staticmethod
+    def get_client_profile(user):
+        """Retourne le profil client s'il existe"""
+        try:
+            return user.clientprofile_profile
+        except:
+            return None
+        
+    @staticmethod
+    def get_merchant_profile(user):
+        """Retourne le profil marchand s'il existe"""
+        try:
+            return user.merchantprofile_profile
+        except:
+            return None
+    
+    @staticmethod
+    def get_admin_profile(user):
+        """Retourne le profil admin s'il existe"""
+        try:
+            return user.adminprofile_profile
+        except:
+            return None
+
+    @staticmethod
+    def get_user_profile(user):
+        """Retourne le profil principal de l'utilisateur"""
+        # Essayer client en premier
+        client_profile = ProfileUtils.get_client_profile(user)
+        if client_profile:
+            return client_profile
+        
+        # Ensuite marchand
+        merchant_profile = ProfileUtils.get_merchant_profile(user)
+        if merchant_profile:
+            return merchant_profile
+        
+        # Enfin admin
+        admin_profile = ProfileUtils.get_admin_profile(user)
+        if admin_profile:
+            return admin_profile
+        
+        return None
+    
+    @staticmethod
+    def get_user_type(user):
+        """Retourne le type d'utilisateur"""
+        if ProfileUtils.get_client_profile(user):
+            return PROFILE_TYPE_CLIENT
+        elif ProfileUtils.get_merchant_profile(user):
+            return PROFILE_TYPE_MERCHANT
+        elif ProfileUtils.get_admin_profile(user):
+            return PROFILE_TYPE_ADMIN
+        return None
+
+    @staticmethod
+    def get_display_name(user):
+        """Retourne le nom d'affichage de l'utilisateur"""
+        client_profile = ProfileUtils.get_client_profile(user)
+        if client_profile:
+            return client_profile.get_display_name()
+        
+        merchant_profile = ProfileUtils.get_merchant_profile(user)
+        if merchant_profile:
+            return merchant_profile.get_display_name()
+        
+        admin_profile = ProfileUtils.get_admin_profile(user)
+        if admin_profile:
+            return admin_profile.get_display_name()
+        
+        # Fallback
+        full_name = f"{user.first_name} {user.last_name}".strip()
+        return full_name or user.username
+    
+    @staticmethod
+    def get_kyc_status(user):
+        """Retourne le statut KYC de l'utilisateur"""
+        client_profile = ProfileUtils.get_client_profile(user)
+        if client_profile:
+            return client_profile.kyc_status
+        
+        merchant_profile = ProfileUtils.get_merchant_profile(user)
+        if merchant_profile:
+            return merchant_profile.kyc_status
+        
+        return None
+    
+    @staticmethod
+    def is_kyc_approved(user):
+        """Vérifie si le KYC de l'utilisateur est approuvé"""
+        client_profile = ProfileUtils.get_client_profile(user)
+        if client_profile:
+            return client_profile.is_kyc_approved()
+        
+        merchant_profile = ProfileUtils.get_merchant_profile(user)
+        if merchant_profile:
+            return merchant_profile.is_kyc_approved()
+        
+        return False
+
+    @staticmethod
+    def can_access_kyc_features(user):
+        """Vérifie si l'utilisateur peut accéder aux fonctionnalités KYC"""
+        return (ProfileUtils.get_client_profile(user) is not None or 
+                ProfileUtils.get_merchant_profile(user) is not None)
+    
+    @staticmethod
+    def get_kyc_capabilities(user):
+        """Retourne les capacités KYC de l'utilisateur"""
+        client_profile = ProfileUtils.get_client_profile(user)
+        if client_profile:
+            return {
+                'can_submit_documents': True,
+                'can_view_status': True,
+                'can_upgrade': client_profile.is_kyc_approved(),
+                'max_level': 2,
+                'profile_type': PROFILE_TYPE_CLIENT
+            }
+        
+        merchant_profile = ProfileUtils.get_merchant_profile(user)
+        if merchant_profile:
+            return {
+                'can_submit_documents': True,
+                'can_view_status': True,
+                'can_upgrade': merchant_profile.is_kyc_approved(),
+                'max_level': 2,
+                'profile_type': PROFILE_TYPE_MERCHANT
+            }
+        
+        admin_profile = ProfileUtils.get_admin_profile(user)
+        if admin_profile:
+            return {
+                'can_validate': admin_profile.can_validate_kyc,
+                'can_view_all': True,
+                'can_manage': True,
+                'profile_type': PROFILE_TYPE_ADMIN
+            }
+        
+        return {}
+
+
+class UserProfileManager:
+    """Gestionnaire pour les opérations sur les profils utilisateur"""
+    
+    @staticmethod
+    def determine_user_type(user):
+        """Détermine le type de profil principal de l'utilisateur"""
+        if ClientProfile.user_has_profile(user):
+            return PROFILE_TYPE_CLIENT
+        elif MerchantProfile.user_has_profile(user):
+            return PROFILE_TYPE_MERCHANT
+        elif AdminProfile.user_has_profile(user):
+            return PROFILE_TYPE_ADMIN
+        return None
+    
+    @staticmethod
+    def get_primary_profile(user):
+        """Retourne le profil principal de l'utilisateur"""
+        user_type = UserProfileManager.determine_user_type(user)
+        if user_type == PROFILE_TYPE_CLIENT:
+            return ClientProfile.get_profile_for_user(user)
+        elif user_type == PROFILE_TYPE_MERCHANT:
+            return MerchantProfile.get_profile_for_user(user)
+        elif user_type == PROFILE_TYPE_ADMIN:
+            return AdminProfile.get_profile_for_user(user)
+        return None
+    
+    @staticmethod
+    def get_user_display_name(user):
+        """Retourne le nom d'affichage principal de l'utilisateur"""
+        user_type = UserProfileManager.determine_user_type(user)
+        if user_type == PROFILE_TYPE_CLIENT:
+            return ClientProfile.get_user_display_name(user)
+        elif user_type == PROFILE_TYPE_MERCHANT:
+            return MerchantProfile.get_user_display_name(user)
+        elif user_type == PROFILE_TYPE_ADMIN:
+            return AdminProfile.get_user_display_name(user)
+        
+        # Fallback
+        full_name = f"{user.first_name} {user.last_name}".strip()
+        return full_name or user.username
+    
+    @staticmethod
+    def user_has_kyc_features(user):
+        """Vérifie si l'utilisateur peut accéder aux fonctionnalités KYC"""
+        return (ClientProfile.user_has_profile(user) or 
+                MerchantProfile.user_has_profile(user))
+    
+    @staticmethod
+    def get_user_kyc_status(user):
+        """Retourne le statut KYC de l'utilisateur"""
+        if ClientProfile.user_has_profile(user):
+            return ClientProfile.get_user_kyc_status(user)
+        elif MerchantProfile.user_has_profile(user):
+            return MerchantProfile.get_user_kyc_status(user)
+        return None
+
+    @staticmethod
+    def is_user_kyc_approved(user):
+        """Vérifie si le KYC de l'utilisateur est approuvé"""
+        if ClientProfile.user_has_profile(user):
+            return ClientProfile.is_user_kyc_approved(user)
+        elif MerchantProfile.user_has_profile(user):
+            return MerchantProfile.is_user_kyc_approved(user)
+        return False
+
+    @staticmethod
+    def get_user_capabilities(user):
+        """Retourne les capacités complètes de l'utilisateur"""
+        capabilities = {
+            'user_type': UserProfileManager.determine_user_type(user),
+            'has_profile': UserProfileManager.get_primary_profile(user) is not None,
+            'display_name': UserProfileManager.get_user_display_name(user),
+            'kyc_features': UserProfileManager.user_has_kyc_features(user),
+            'kyc_status': UserProfileManager.get_user_kyc_status(user),
+            'kyc_approved': UserProfileManager.is_user_kyc_approved(user)
+        }
+        
+        # Ajouter les capacités spécifiques au profil
+        if AdminProfile.user_has_profile(user):
+            capabilities['can_validate_kyc'] = AdminProfile.user_can_validate_kyc(user)
+        
+        return capabilities
 
 
 # ========== MODÈLES PRINCIPAUX ==========
@@ -114,7 +459,7 @@ class ClientProfile(models.Model):
     birth_date = models.DateField(verbose_name="Date de naissance", null=True, blank=True)
     nationality = models.CharField(max_length=100, verbose_name="Nationalité", null=True, blank=True)
     kyc_status = models.IntegerField(verbose_name="Statut KYC", choices=KYC_STATUS_CHOICES, default=KYC_PENDING)
-    id_document = models.FileField(upload_to='kyc/clients/documents/', validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])], verbose_name="Document d'identité", null=True, blank=True)
+    document = models.FileField(upload_to=client_document_path, validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])], verbose_name="Document d'identité", null=True, blank=True)
     preferred_language = models.IntegerField(verbose_name="Langue préférée", choices=LANGUAGE_CHOICES, default=LANG_FR)
     is_active = models.BooleanField(verbose_name="Actif?", default=True)
     create = models.DateTimeField(verbose_name="Date de création", auto_now_add=True)
@@ -137,6 +482,14 @@ class ClientProfile(models.Model):
             return f"{self.prenom} {self.nom}"
         return self.user.username
     
+    def get_display_name(self):
+        """Méthode commune pour obtenir le nom d'affichage"""
+        return self.get_full_name()
+    
+    def get_profile_type(self):
+        """Méthode commune pour obtenir le type de profil"""
+        return PROFILE_TYPE_CLIENT
+    
     def is_kyc_pending(self):
         """Vérifie si le KYC est en attente"""
         return self.kyc_status == self.KYC_PENDING
@@ -151,11 +504,11 @@ class ClientProfile(models.Model):
     
     def can_upgrade_kyc(self):
         """Peut passer au niveau KYC suivant"""
-        return self.kyc_status == self.KYC_PENDING and self.id_document
+        return self.kyc_status == self.KYC_PENDING and self.document
     
     def get_kyc_completion_percentage(self):
         """Retourne le pourcentage de completion du profil KYC"""
-        required_fields = ['nom', 'prenom', 'phone', 'address', 'birth_date', 'nationality', 'id_document']
+        required_fields = ['nom', 'prenom', 'phone', 'address', 'birth_date', 'nationality', 'document']
         completed_fields = sum(1 for field in required_fields if getattr(self, field))
         return int((completed_fields / len(required_fields)) * 100)
     
@@ -168,7 +521,7 @@ class ClientProfile(models.Model):
             'address': 'Adresse',
             'birth_date': 'Date de naissance',
             'nationality': 'Nationalité',
-            'id_document': 'Document d\'identité'
+            'document': 'Document d\'identité'
         }
         return [label for field, label in required_fields.items() if not getattr(self, field)]
     
@@ -199,10 +552,94 @@ class ClientProfile(models.Model):
         """Retourne un dictionnaire des statuts KYC"""
         return dict(ClientProfile.KYC_STATUS_CHOICES)
     
+    @staticmethod
+    def get_profile_for_user(user):
+        """Retourne le profil client pour un utilisateur donné"""
+        try:
+            return user.clientprofile_profile
+        except:
+            return None
+    
+    @staticmethod
+    def user_has_profile(user):
+        """Vérifie si l'utilisateur a un profil client"""
+        try:
+            return bool(user.clientprofile_profile)
+        except:
+            return False
+    
+    @staticmethod
+    def get_user_display_name(user):
+        """Retourne le nom d'affichage pour un utilisateur client"""
+        profile = ClientProfile.get_profile_for_user(user)
+        if profile:
+            return profile.get_display_name()
+        return None
+    
+    @staticmethod
+    def get_user_kyc_status(user):
+        """Retourne le statut KYC pour un utilisateur client"""
+        profile = ClientProfile.get_profile_for_user(user)
+        if profile:
+            return profile.kyc_status
+        return None
+    
+    @staticmethod
+    def is_user_kyc_approved(user):
+        """Vérifie si le KYC est approuvé pour un utilisateur client"""
+        profile = ClientProfile.get_profile_for_user(user)
+        if profile:
+            return profile.is_kyc_approved()
+        return False
+    
+    @classmethod
+    def get_valid_fields(cls):
+        """Retourne la liste des champs valides pour la mise à jour"""
+        return ['nom', 'prenom', 'phone', 'address', 'birth_date', 'nationality', 'preferred_language']
+    
+    def is_valid_field(self, field_name):
+        """Vérifie si un nom de champ est valide pour ce modèle"""
+        return field_name in self.__class__.get_valid_fields()
+    
+    def clean(self):
+        """Validation personnalisée"""
+        super().clean()
+        
+        # VÉRIFICATION D'UNICITÉ : Un utilisateur ne peut pas être à la fois client et merchant
+        if self.user:
+            if MerchantProfile.user_has_profile(self.user):
+                raise ValidationError("Un utilisateur ne peut pas être à la fois client et marchand. Supprimez d'abord le profil marchand.")
+        
+        # Validation des champs obligatoires pour KYC
+        if self.kyc_status != self.KYC_PENDING:
+            required_fields = ['nom', 'prenom', 'phone', 'address', 'birth_date', 'nationality', 'document']
+            missing_fields = [field for field in required_fields if not getattr(self, field)]
+            if missing_fields:
+                raise ValidationError(f"Les champs suivants sont obligatoires pour valider le KYC : {', '.join(missing_fields)}")
+        
+        # Validation de la date de naissance
+        if self.birth_date:
+            today = timezone.now().date()
+            age = today.year - self.birth_date.year - ((today.month, today.day) < (self.birth_date.month, self.birth_date.day))
+            if age < 18:
+                raise ValidationError("L'utilisateur doit avoir au moins 18 ans")
+            if age > 120:
+                raise ValidationError("L'âge semble incorrect")
+        
+        # Validation du numéro de téléphone
+        if self.phone:
+            phone_pattern = compile(r'^\+?[1-9]\d{1,14}$')
+            if not phone_pattern.match(self.phone):
+                raise ValidationError("Le format du numéro de téléphone est incorrect")
+    
     # Méthodes de création et mise à jour
     @classmethod
     def create_profile(cls, user, **extra_fields):
         """Crée un profil client avec les données de base"""
+        # VÉRIFICATION D'UNICITÉ : Un utilisateur ne peut pas être à la fois client et merchant
+        if MerchantProfile.user_has_profile(user):
+            raise ValidationError("Un utilisateur ne peut pas être à la fois client et marchand. Supprimez d'abord le profil marchand.")
+        
         return cls.objects.create(
             user=user,
             kyc_status=cls.KYC_PENDING,
@@ -238,10 +675,50 @@ class ClientProfile(models.Model):
     def complete_profile_data(self, **profile_data):
         """Complète les données du profil"""
         for field, value in profile_data.items():
-            if hasattr(self, field) and value:
+            if self.is_valid_field(field) and value:
                 setattr(self, field, value)
         self.save()
         return self
+    
+    def update_kyc_data(self, **kyc_data):
+        """Met à jour les données KYC et gère la validation automatique"""
+        # Mettre à jour les champs de base
+        for field, value in kyc_data.items():
+            if self.is_valid_field(field) and value is not None:
+                setattr(self, field, value)
+        
+        # Gérer les documents avec le gestionnaire d'upload
+        file_fields = {k: v for k, v in kyc_data.items() if k in ['document'] and v}
+        if file_fields:
+            FileUploadManager.update_multiple_files(self, file_fields)
+        
+        # Sauvegarder les changements
+        self.save()
+        
+        # Validation automatique du statut KYC
+        self.update_kyc_status_automatically()
+        return self
+    
+    def update_kyc_status_automatically(self):
+        """Met à jour le statut KYC selon les règles métier"""
+        if self.can_upgrade_kyc():
+            self.kyc_status = self.KYC1_APPROVED
+        self.save()
+    
+    @classmethod
+    def create_user_with_profile(cls, username, email, password, **profile_data):
+        """Crée un utilisateur avec son profil client en une seule opération"""
+        with transaction.atomic():
+            # VÉRIFICATION D'UNICITÉ : S'assurer qu'aucun profil merchant n'existe déjà
+            # Cette vérification est redondante car l'utilisateur est nouveau, mais c'est une sécurité
+            
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password
+            )
+            profile = cls.create_profile(user, **profile_data)
+            return user, profile
 
 
 class MerchantProfile(models.Model):
@@ -287,9 +764,9 @@ class MerchantProfile(models.Model):
     company_country = models.CharField(max_length=100, verbose_name="Pays")
     company_postal_code = models.CharField(max_length=20, verbose_name="Code postal")
     kyc_status = models.IntegerField(verbose_name="Statut KYC", choices=KYC_STATUS_CHOICES, default=KYC_PENDING)
-    business_license = models.FileField(upload_to='kyc/merchants/licenses/', validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])], verbose_name="Licence commerciale", null=True, blank=True)
-    tax_certificate = models.FileField(upload_to='kyc/merchants/tax/', validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])], verbose_name="Certificat fiscal", null=True, blank=True)
-    company_registration_doc = models.FileField(upload_to='kyc/merchants/registration/', validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])], verbose_name="Document d'enregistrement", null=True, blank=True)
+    business_license = models.FileField(upload_to=merchant_document_path, validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])], verbose_name="Licence commerciale", null=True, blank=True)
+    tax_certificate = models.FileField(upload_to=merchant_document_path, validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])], verbose_name="Certificat fiscal", null=True, blank=True)
+    company_registration_doc = models.FileField(upload_to=merchant_document_path, validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])], verbose_name="Document d'enregistrement", null=True, blank=True)
     business_type = models.IntegerField(verbose_name="Type d'entreprise", choices=BUSINESS_TYPE_CHOICES, default=BUSINESS_TRAVEL_AGENCY)
     is_verified = models.BooleanField(default=False, verbose_name="Vérifié")
     commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name="Taux de commission (%)")
@@ -311,6 +788,14 @@ class MerchantProfile(models.Model):
     def get_company_display_name(self):
         """Retourne le nom d'affichage de l'entreprise"""
         return self.company_name or f"Entreprise de {self.user.username}"
+    
+    def get_display_name(self):
+        """Méthode commune pour obtenir le nom d'affichage"""
+        return self.get_company_display_name()
+    
+    def get_profile_type(self):
+        """Méthode commune pour obtenir le type de profil"""
+        return PROFILE_TYPE_MERCHANT
     
     def is_kyc_pending(self):
         """Vérifie si le KYC est en attente"""
@@ -397,7 +882,6 @@ class MerchantProfile(models.Model):
     @classmethod
     def get_average_commission_rate(cls):
         """Retourne le taux de commission moyen"""
-        from django.db.models import Avg
         result = cls.objects.aggregate(avg_rate=Avg('commission_rate'))
         return result['avg_rate'] or 0
     
@@ -415,10 +899,94 @@ class MerchantProfile(models.Model):
             'KYC2': ['tax_certificate', 'complete_profile']
         }
     
+    @staticmethod
+    def get_profile_for_user(user):
+        """Retourne le profil marchand pour un utilisateur donné"""
+        try:
+            return user.merchantprofile_profile
+        except:
+            return None
+    
+    @staticmethod
+    def user_has_profile(user):
+        """Vérifie si l'utilisateur a un profil marchand"""
+        try:
+            return bool(user.merchantprofile_profile)
+        except:
+            return False
+    
+    @staticmethod
+    def get_user_display_name(user):
+        """Retourne le nom d'affichage pour un utilisateur marchand"""
+        profile = MerchantProfile.get_profile_for_user(user)
+        if profile:
+            return profile.get_display_name()
+        return None
+    
+    @staticmethod
+    def get_user_kyc_status(user):
+        """Retourne le statut KYC pour un utilisateur marchand"""
+        profile = MerchantProfile.get_profile_for_user(user)
+        if profile:
+            return profile.kyc_status
+        return None
+    
+    @staticmethod
+    def is_user_kyc_approved(user):
+        """Vérifie si le KYC est approuvé pour un utilisateur marchand"""
+        profile = MerchantProfile.get_profile_for_user(user)
+        if profile:
+            return profile.is_kyc_approved()
+        return False
+    
+    @classmethod
+    def get_valid_fields(cls):
+        """Retourne la liste des champs valides pour la mise à jour"""
+        return ['company_name', 'contact_person', 'contact_phone', 'contact_email', 'company_address', 
+                'company_city', 'company_country', 'company_postal_code', 'business_type', 'company_registration', 'tax_id']
+    
+    def is_valid_field(self, field_name):
+        """Vérifie si un nom de champ est valide pour ce modèle"""
+        return field_name in self.__class__.get_valid_fields()
+    
+    def clean(self):
+        """Validation personnalisée"""
+        super().clean()
+        
+        # VÉRIFICATION D'UNICITÉ : Un utilisateur ne peut pas être à la fois merchant et client
+        if self.user:
+            if ClientProfile.user_has_profile(self.user):
+                raise ValidationError("Un utilisateur ne peut pas être à la fois marchand et client. Supprimez d'abord le profil client.")
+        
+        # Validation des champs obligatoires pour KYC
+        if self.kyc_status != self.KYC_PENDING:
+            required_fields = ['company_name', 'contact_person', 'contact_phone', 'contact_email', 
+                             'company_address', 'company_city', 'company_country', 'company_postal_code']
+            missing_fields = [field for field in required_fields if not getattr(self, field)]
+            if missing_fields:
+                raise ValidationError(f"Les champs suivants sont obligatoires pour valider le KYC : {', '.join(missing_fields)}")
+        
+        # Validation du numéro de téléphone
+        if self.contact_phone:
+            phone_pattern = compile(r'^\+?[1-9]\d{1,14}$')
+            if not phone_pattern.match(self.contact_phone):
+                raise ValidationError("Le format du numéro de téléphone est incorrect")
+        
+        # Validation de l'email
+        if self.contact_email:
+            try:
+                validate_email(self.contact_email)
+            except ValidationError:
+                raise ValidationError("Le format de l'email est incorrect")
+    
     # Méthodes de création et mise à jour
     @classmethod
     def create_profile(cls, user, company_name, business_type=None, **extra_fields):
         """Crée un profil marchand avec les données de base"""
+        # VÉRIFICATION D'UNICITÉ : Un utilisateur ne peut pas être à la fois merchant et client
+        if ClientProfile.user_has_profile(user):
+            raise ValidationError("Un utilisateur ne peut pas être à la fois marchand et client. Supprimez d'abord le profil client.")
+        
         return cls.objects.create(
             user=user,
             company_name=company_name,
@@ -475,10 +1043,52 @@ class MerchantProfile(models.Model):
     def complete_company_data(self, **company_data):
         """Complète les données de l'entreprise"""
         for field, value in company_data.items():
-            if hasattr(self, field) and value:
+            if self.is_valid_field(field) and value:
                 setattr(self, field, value)
         self.save()
         return self
+    
+    def update_kyc_data(self, **kyc_data):
+        """Met à jour les données KYC et gère la validation automatique"""
+        # Mettre à jour les champs de base
+        for field, value in kyc_data.items():
+            if self.is_valid_field(field) and value is not None:
+                setattr(self, field, value)
+        
+        # Gérer les documents avec le gestionnaire d'upload
+        file_fields = {k: v for k, v in kyc_data.items() if k in ['business_license', 'company_registration_doc', 'tax_certificate'] and v}
+        if file_fields:
+            FileUploadManager.update_multiple_files(self, file_fields)
+        
+        # Sauvegarder les changements
+        self.save()
+        
+        # Validation automatique du statut KYC
+        self.update_kyc_status_automatically()
+        return self
+    
+    def update_kyc_status_automatically(self):
+        """Met à jour le statut KYC selon les règles métier"""
+        if self.can_upgrade_to_kyc1():
+            self.kyc_status = self.KYC1_APPROVED
+        elif self.can_upgrade_to_kyc2():
+            self.kyc_status = self.KYC2_APPROVED
+        self.save()
+    
+    @classmethod
+    def create_user_with_profile(cls, username, email, password, company_name, **profile_data):
+        """Crée un utilisateur avec son profil marchand en une seule opération"""
+        with transaction.atomic():
+            # VÉRIFICATION D'UNICITÉ : S'assurer qu'aucun profil client n'existe déjà
+            # Cette vérification est redondante car l'utilisateur est nouveau, mais c'est une sécurité
+            
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password
+            )
+            profile = cls.create_profile(user, company_name, **profile_data)
+            return user, profile
 
 
 class AdminProfile(models.Model):
@@ -527,6 +1137,14 @@ class AdminProfile(models.Model):
         """Retourne le nom d'affichage de l'administrateur"""
         full_name = f"{self.user.first_name} {self.user.last_name}".strip()
         return full_name or self.user.username
+    
+    def get_display_name(self):
+        """Méthode commune pour obtenir le nom d'affichage"""
+        return self.get_admin_display_name()
+    
+    def get_profile_type(self):
+        """Méthode commune pour obtenir le type de profil"""
+        return PROFILE_TYPE_ADMIN
     
     def is_super_admin(self):
         """Vérifie si c'est un super administrateur"""
@@ -604,6 +1222,22 @@ class AdminProfile(models.Model):
         return cls.objects.filter(admin_level=admin_level, is_active=True)
     
     @classmethod
+    def create_user_with_profile(cls, username, email, password, admin_level=ADMIN_SUPPORT, **profile_data):
+        """Crée un utilisateur avec son profil admin en une seule opération"""
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password
+            )
+            profile = cls.objects.create(
+                user=user,
+                admin_level=admin_level,
+                **profile_data
+            )
+            return user, profile
+    
+    @classmethod
     def get_kyc_validators(cls):
         """Retourne tous les administrateurs pouvant valider le KYC"""
         return cls.objects.filter(can_validate_kyc=True, is_active=True)
@@ -664,6 +1298,38 @@ class AdminProfile(models.Model):
                 'can_manage_system': False
             }
         }
+    
+    @staticmethod
+    def get_profile_for_user(user):
+        """Retourne le profil admin pour un utilisateur donné"""
+        try:
+            return user.adminprofile_profile
+        except:
+            return None
+    
+    @staticmethod
+    def user_has_profile(user):
+        """Vérifie si l'utilisateur a un profil admin"""
+        try:
+            return bool(user.adminprofile_profile)
+        except:
+            return False
+    
+    @staticmethod
+    def get_user_display_name(user):
+        """Retourne le nom d'affichage pour un utilisateur admin"""
+        profile = AdminProfile.get_profile_for_user(user)
+        if profile:
+            return profile.get_display_name()
+        return None
+    
+    @staticmethod
+    def user_can_validate_kyc(user):
+        """Vérifie si l'utilisateur admin peut valider le KYC"""
+        profile = AdminProfile.get_profile_for_user(user)
+        if profile:
+            return profile.can_validate_kyc
+        return False
     
     # Méthodes de création et mise à jour
     @classmethod
@@ -821,17 +1487,9 @@ class KYCValidation(models.Model):
     
     def get_profile_instance(self):
         """Retourne l'instance du profil correspondant"""
-        if self.profile_type == self.PROFILE_CLIENT:
-            try:
-                return ClientProfile.objects.get(id=self.profile_id)
-            except ClientProfile.DoesNotExist:
-                return None
-        elif self.profile_type == self.PROFILE_MERCHANT:
-            try:
-                return MerchantProfile.objects.get(id=self.profile_id)
-            except MerchantProfile.DoesNotExist:
-                return None
-        return None
+        return self.get_profile_by_type_and_id(self.profile_type, self.profile_id)
+
+
     
     def get_validation_summary(self):
         """Retourne un résumé de la validation"""
@@ -876,9 +1534,6 @@ class KYCValidation(models.Model):
     @classmethod
     def get_recent_validations(cls, days=7):
         """Retourne les validations récentes (7 jours par défaut)"""
-        from django.utils import timezone
-        from datetime import timedelta
-        
         since_date = timezone.now() - timedelta(days=days)
         return cls.objects.filter(validated_at__gte=since_date)
     
@@ -890,13 +1545,11 @@ class KYCValidation(models.Model):
     @classmethod
     def get_validation_stats(cls):
         """Retourne les statistiques de validation"""
-        from django.db.models import Count
-        
         stats = cls.objects.aggregate(
             total=Count('id'),
-            pending=Count('id', filter=models.Q(status=cls.VALIDATION_PENDING)),
-            approved=Count('id', filter=models.Q(status=cls.VALIDATION_APPROVED)),
-            rejected=Count('id', filter=models.Q(status=cls.VALIDATION_REJECTED))
+            pending=Count('id', filter=Q(status=cls.VALIDATION_PENDING)),
+            approved=Count('id', filter=Q(status=cls.VALIDATION_APPROVED)),
+            rejected=Count('id', filter=Q(status=cls.VALIDATION_REJECTED))
         )
         
         return {
@@ -924,7 +1577,7 @@ class KYCValidation(models.Model):
         """Retourne le workflow de validation KYC"""
         return {
             'client': {
-                'KYC1': ['id_document', 'personal_info'],
+                'KYC1': ['document', 'personal_info'],
                 'requirements': 'Document d\'identité et informations personnelles'
             },
             'merchant': {
@@ -934,16 +1587,39 @@ class KYCValidation(models.Model):
             }
         }
     
+    # Méthodes statiques utilitaires
+    @staticmethod
+    def determine_profile_type(profile_instance):
+        """Détermine le type de profil pour la validation KYC"""
+        profile_type_name = profile_instance.get_profile_type()
+        
+        if profile_type_name == PROFILE_TYPE_CLIENT:
+            return KYCValidation.PROFILE_CLIENT
+        elif profile_type_name == PROFILE_TYPE_MERCHANT:
+            return KYCValidation.PROFILE_MERCHANT
+        else:
+            raise ValueError(f"Type de profil non supporté pour validation KYC: {profile_type_name}")
+    
+    @staticmethod
+    def get_profile_by_type_and_id(profile_type, profile_id):
+        """Retourne l'instance du profil selon le type et l'ID"""
+        if profile_type == KYCValidation.PROFILE_CLIENT:
+            try:
+                return ClientProfile.objects.get(id=profile_id)
+            except ClientProfile.DoesNotExist:
+                return None
+        elif profile_type == KYCValidation.PROFILE_MERCHANT:
+            try:
+                return MerchantProfile.objects.get(id=profile_id)
+            except MerchantProfile.DoesNotExist:
+                return None
+        return None
+    
     # Méthodes de création et validation
     @classmethod
     def create_validation(cls, profile_instance, kyc_level, validated_by=None, notes=None):
         """Crée une validation KYC pour un profil"""
-        if profile_instance.__class__.__name__ == 'ClientProfile':
-            profile_type = cls.PROFILE_CLIENT
-        elif profile_instance.__class__.__name__ == 'MerchantProfile':
-            profile_type = cls.PROFILE_MERCHANT
-        else:
-            raise ValueError("Type de profil non supporté")
+        profile_type = cls.determine_profile_type(profile_instance)
         
         return cls.objects.create(
             profile_type=profile_type,

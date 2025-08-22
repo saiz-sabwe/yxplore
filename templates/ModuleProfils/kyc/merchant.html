@@ -1,0 +1,334 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock title%}
+{% block extra_css %}{% endblock extra_css%}
+
+{% block extra_javascript %}
+<script src="{% static 'ModuleProfils/js/kyc.js' %}"></script>
+{% endblock extra_javascript%}
+
+{% block content %}
+<!-- =======================
+Page Banner START -->
+<section class="pt-4 pt-md-5 pb-0">
+	<div class="container">
+		<div class="row">
+			<div class="col-12 mx-auto text-center">
+				<h1 class="fs-2 mb-2">Validation KYC Marchand</h1>
+				<p class="mb-0">Complétez votre profil entreprise pour une validation rapide de votre activité commerciale.</p>
+			</div>
+		</div>
+	</div>
+</section>
+<!-- =======================
+Page Banner END -->
+
+<!-- =======================
+Main content START -->
+<section>
+	<div class="container">
+		<div class="row">
+			<div class="col-lg-10 mx-auto">
+				<!-- KYC Status Card -->
+				<div class="card shadow mb-4">
+					<div class="card-header bg-primary text-white">
+						<h5 class="mb-0">
+							<i class="bi bi-shield-check me-2"></i>
+							Statut KYC: 
+							<span class="badge bg-light text-dark">
+								{% if profile.kyc_status == 0 %}En attente{% endif %}
+								{% if profile.kyc_status == 1 %}KYC1 Approuvé{% endif %}
+								{% if profile.kyc_status == 2 %}KYC2 Approuvé{% endif %}
+								{% if profile.kyc_status == 3 %}Rejeté{% endif %}
+							</span>
+						</h5>
+					</div>
+					<div class="card-body">
+						<div class="row align-items-center">
+							<div class="col-md-8">
+								<div class="progress mb-2" style="height: 10px;">
+									<div class="progress-bar bg-success" role="progressbar" 
+										 style="width: {{ profile.get_kyc_completion_percentage }}%" 
+										 aria-valuenow="{{ profile.get_kyc_completion_percentage }}" 
+										 aria-valuemin="0" aria-valuemax="100"></div>
+								</div>
+								<small class="text-muted">{{ profile.get_kyc_completion_percentage }}% complété</small>
+							</div>
+							<div class="col-md-4 text-end">
+								{% if profile.kyc_status == 0 %}
+									<span class="badge bg-warning">En attente de validation</span>
+								{% elif profile.kyc_status == 1 %}
+									<span class="badge bg-success">Niveau 1 validé</span>
+								{% elif profile.kyc_status == 2 %}
+									<span class="badge bg-success">Niveau 2 validé</span>
+								{% elif profile.kyc_status == 3 %}
+									<span class="badge bg-danger">Rejeté</span>
+								{% endif %}
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<form class="vstack gap-4" id="kycMerchantForm" enctype="multipart/form-data">
+					{% csrf_token %}
+					<input type="hidden" name="profile_type" value="merchant">
+					<input type="hidden" name="op" value="submit_kyc">
+
+					<!-- Company Information START -->
+					<div class="card shadow">
+						<div class="card-header border-bottom">
+							<h5 class="mb-0">
+								<i class="bi bi-building me-2"></i>
+								Informations de l'Entreprise
+							</h5>
+						</div>
+						<div class="card-body">
+							<div class="row g-3">
+								<!-- Company Name -->
+								<div class="col-md-6">
+									<label class="form-label">Nom de l'entreprise *</label>
+									<input type="text" class="form-control" name="company_name" 
+										   value="{{ profile.company_name|default:'' }}" 
+										   placeholder="Nom de votre entreprise" required>
+								</div>
+
+								<!-- Business Type -->
+								<div class="col-md-6">
+									<label class="form-label">Type d'entreprise *</label>
+									<select class="form-select" name="business_type" required>
+										<option value="">Sélectionnez le type</option>
+										<option value="0" {% if profile.business_type == 0 %}selected{% endif %}>Agence de voyage</option>
+										<option value="1" {% if profile.business_type == 1 %}selected{% endif %}>Hôtel</option>
+										<option value="2" {% if profile.business_type == 2 %}selected{% endif %}>Compagnie aérienne</option>
+										<option value="3" {% if profile.business_type == 3 %}selected{% endif %}>Location de voiture</option>
+										<option value="4" {% if profile.business_type == 4 %}selected{% endif %}>Tour opérateur</option>
+										<option value="5" {% if profile.business_type == 5 %}selected{% endif %}>Autre</option>
+									</select>
+								</div>
+
+								<!-- Company Registration -->
+								<div class="col-md-6">
+									<label class="form-label">Numéro d'enregistrement</label>
+									<input type="text" class="form-control" name="company_registration" 
+										   value="{{ profile.company_registration|default:'' }}" 
+										   placeholder="Numéro SIRET, RC, etc.">
+								</div>
+
+								<!-- Tax ID -->
+								<div class="col-md-6">
+									<label class="form-label">Numéro de TVA</label>
+									<input type="text" class="form-control" name="tax_id" 
+										   value="{{ profile.tax_id|default:'' }}" 
+										   placeholder="Numéro de TVA">
+								</div>
+							</div>
+						</div>
+					</div>
+					<!-- Company Information END -->
+
+					<!-- Contact Information START -->
+					<div class="card shadow">
+						<div class="card-header border-bottom">
+							<h5 class="mb-0">
+								<i class="bi bi-person-lines-fill me-2"></i>
+								Informations de Contact
+							</h5>
+						</div>
+						<div class="card-body">
+							<div class="row g-3">
+								<!-- Contact Person -->
+								<div class="col-md-6">
+									<label class="form-label">Personne de contact *</label>
+									<input type="text" class="form-control" name="contact_person" 
+										   value="{{ profile.contact_person|default:'' }}" 
+										   placeholder="Nom complet du contact" required>
+								</div>
+
+								<!-- Contact Phone -->
+								<div class="col-md-6">
+									<label class="form-label">Téléphone de contact *</label>
+									<input type="tel" class="form-control" name="contact_phone" 
+										   value="{{ profile.contact_phone|default:'' }}" 
+										   placeholder="+33 6 12 34 56 78" required>
+								</div>
+
+								<!-- Contact Email -->
+								<div class="col-md-6">
+									<label class="form-label">Email de contact *</label>
+									<input type="email" class="form-control" name="contact_email" 
+										   value="{{ profile.contact_email|default:'' }}" 
+										   placeholder="contact@entreprise.com" required>
+								</div>
+							</div>
+						</div>
+					</div>
+					<!-- Contact Information END -->
+
+					<!-- Company Address START -->
+					<div class="card shadow">
+						<div class="card-header border-bottom">
+							<h5 class="mb-0">
+								<i class="bi bi-geo-alt me-2"></i>
+								Adresse de l'Entreprise
+							</h5>
+						</div>
+						<div class="card-body">
+							<div class="row g-3">
+								<!-- Company Address -->
+								<div class="col-12">
+									<label class="form-label">Adresse complète *</label>
+									<textarea class="form-control" name="company_address" rows="3" 
+											  placeholder="Adresse complète de l'entreprise" required>{{ profile.company_address|default:'' }}</textarea>
+								</div>
+
+								<!-- Company City -->
+								<div class="col-md-6">
+									<label class="form-label">Ville *</label>
+									<input type="text" class="form-control" name="company_city" 
+										   value="{{ profile.company_city|default:'' }}" 
+										   placeholder="Ville" required>
+								</div>
+
+								<!-- Company Country -->
+								<div class="col-md-6">
+									<label class="form-label">Pays *</label>
+									<select class="form-select" name="company_country" required>
+										<option value="">Sélectionnez le pays</option>
+										<option value="FR" {% if profile.company_country == 'FR' %}selected{% endif %}>France</option>
+										<option value="BE" {% if profile.company_country == 'BE' %}selected{% endif %}>Belgique</option>
+										<option value="CH" {% if profile.company_country == 'CH' %}selected{% endif %}>Suisse</option>
+										<option value="CA" {% if profile.company_country == 'CA' %}selected{% endif %}>Canada</option>
+										<option value="MA" {% if profile.company_country == 'MA' %}selected{% endif %}>Maroc</option>
+										<option value="TN" {% if profile.company_country == 'TN' %}selected{% endif %}>Tunisie</option>
+										<option value="DZ" {% if profile.company_country == 'DZ' %}selected{% endif %}>Algérie</option>
+										<option value="OTHER" {% if profile.company_country and profile.company_country not in 'FR,BE,CH,CA,MA,TN,DZ' %}selected{% endif %}>Autre</option>
+									</select>
+								</div>
+
+								<!-- Company Postal Code -->
+								<div class="col-md-6">
+									<label class="form-label">Code postal *</label>
+									<input type="text" class="form-control" name="company_postal_code" 
+										   value="{{ profile.company_postal_code|default:'' }}" 
+										   placeholder="Code postal" required>
+								</div>
+							</div>
+						</div>
+					</div>
+					<!-- Company Address END -->
+
+					<!-- Business Documents START -->
+					<div class="card shadow">
+						<div class="card-header border-bottom">
+							<h5 class="mb-0">
+								<i class="bi bi-file-earmark-text me-2"></i>
+								Documents Commerciaux
+							</h5>
+						</div>
+						<div class="card-body">
+							<div class="row g-3">
+								<!-- Business License -->
+								<div class="col-md-6">
+									<label class="form-label">Licence commerciale *</label>
+									<div class="dropzone dropzone-custom" id="businessLicenseDropzone" 
+										 data-dropzone='{"maxFiles": 1, "addRemoveLinks": true, "acceptedFiles": ".pdf,.jpg,.jpeg,.png"}'>
+										<div class="dz-message needsclick">
+											<i class="bi bi-upload display-4 text-primary"></i>
+											<p class="mb-2">Licence commerciale</p>
+											<p class="small text-muted mb-0">PDF, JPG, JPEG, PNG</p>
+										</div>
+									</div>
+									{% if profile.business_license %}
+									<div class="mt-2">
+										<div class="alert alert-info small">
+											<i class="bi bi-file-earmark-text me-2"></i>
+											Document actuel: <a href="{{ profile.business_license.url }}" target="_blank">{{ profile.business_license.name|slice:"25:" }}</a>
+										</div>
+									</div>
+									{% endif %}
+								</div>
+
+								<!-- Company Registration Document -->
+								<div class="col-md-6">
+									<label class="form-label">Document d'enregistrement *</label>
+									<div class="dropzone dropzone-custom" id="registrationDocDropzone" 
+										 data-dropzone='{"maxFiles": 1, "addRemoveLinks": true, "acceptedFiles": ".pdf,.jpg,.jpeg,.png"}'>
+										<div class="dz-message needsclick">
+											<i class="bi bi-upload display-4 text-primary"></i>
+											<p class="mb-2">Document d'enregistrement</p>
+											<p class="small text-muted mb-0">PDF, JPG, JPEG, PNG</p>
+										</div>
+									</div>
+									{% if profile.company_registration_doc %}
+									<div class="mt-2">
+										<div class="alert alert-info small">
+											<i class="bi bi-file-earmark-text me-2"></i>
+											Document actuel: <a href="{{ profile.company_registration_doc.url }}" target="_blank">{{ profile.company_registration_doc.name|slice:"30:" }}</a>
+										</div>
+									</div>
+									{% endif %}
+								</div>
+
+								<!-- Tax Certificate -->
+								<div class="col-md-6">
+									<label class="form-label">Certificat fiscal</label>
+									<div class="dropzone dropzone-custom" id="taxCertDropzone" 
+										 data-dropzone='{"maxFiles": 1, "addRemoveLinks": true, "acceptedFiles": ".pdf,.jpg,.jpeg,.png"}'>
+										<div class="dz-message needsclick">
+											<i class="bi bi-upload display-4 text-primary"></i>
+											<p class="mb-2">Certificat fiscal</p>
+											<p class="small text-muted mb-0">PDF, JPG, JPEG, PNG</p>
+										</div>
+									</div>
+									{% if profile.tax_certificate %}
+									<div class="mt-2">
+										<div class="alert alert-info small">
+											<i class="bi bi-file-earmark-text me-2"></i>
+											Document actuel: <a href="{{ profile.tax_certificate.url }}" target="_blank">{{ profile.tax_certificate.name|slice:"22:" }}</a>
+										</div>
+									</div>
+									{% endif %}
+								</div>
+							</div>
+							<p class="small mb-0 mt-3">
+								<b>Note:</b> Tous les documents seront utilisés uniquement pour la vérification KYC et seront traités de manière sécurisée.
+							</p>
+						</div>
+					</div>
+					<!-- Business Documents END -->
+
+					<!-- Missing Fields Alert -->
+					{% if profile.get_missing_kyc_fields %}
+					<div class="alert alert-warning">
+						<h6 class="alert-heading">
+							<i class="bi bi-exclamation-triangle me-2"></i>
+							Champs manquants pour la validation KYC
+						</h6>
+						<ul class="mb-0">
+							{% for field in profile.get_missing_kyc_fields %}
+							<li>{{ field }}</li>
+							{% endfor %}
+						</ul>
+					</div>
+					{% endif %}
+
+					<!-- Submit Button -->
+					<div class="text-end">
+						<button type="button" class="btn btn-primary btn-lg" id="submitKYCMerchantBtn">
+							<i class="bi bi-check-circle me-2"></i>
+							Soumettre pour validation KYC
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</section>
+<!-- =======================
+Main content END -->
+{% endblock content %}
+
+{% block param %} {% endblock param %}
+
+{% block javascript %}{% endblock javascript%}

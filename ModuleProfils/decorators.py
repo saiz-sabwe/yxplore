@@ -4,6 +4,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
+from .models import UserProfileManager, ProfileUtils
 
 def role_required(allowed_roles):
     """
@@ -57,8 +58,9 @@ def kyc_approved_required(view_func):
             return redirect(reverse('profils:index'))
             
         # Vérifier le statut KYC selon le type de profil
-        if hasattr(profile, 'kyc_status'):
-            if profile.kyc_status == 0:  # KYC_PENDING
+        if UserProfileManager.user_has_kyc_features(user):
+            kyc_status = UserProfileManager.get_user_kyc_status(user)
+            if kyc_status == 0:  # KYC_PENDING
                 if request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest':
                     return JsonResponse({
                         'resultat': 'FAIL',
@@ -74,26 +76,13 @@ def get_user_role(user):
     """Obtenir le rôle de l'utilisateur"""
     if not user.is_authenticated:
         return None
-        
-    if hasattr(user, 'clientprofile_profile'):
-        return 'client'
-    elif hasattr(user, 'merchantprofile_profile'):
-        return 'merchant'
-    elif hasattr(user, 'adminprofile_profile'):
-        return 'admin'
-    else:
-        return 'unknown'
+    
+    user_type = UserProfileManager.determine_user_type(user)
+    return user_type if user_type else 'unknown'
 
 def get_user_profile(user):
     """Obtenir le profil de l'utilisateur"""
     if not user.is_authenticated:
         return None
-        
-    if hasattr(user, 'clientprofile_profile'):
-        return user.clientprofile_profile
-    elif hasattr(user, 'merchantprofile_profile'):
-        return user.merchantprofile_profile
-    elif hasattr(user, 'adminprofile_profile'):
-        return user.adminprofile_profile
-    else:
-        return None
+    
+    return UserProfileManager.get_primary_profile(user)

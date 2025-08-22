@@ -47,7 +47,7 @@ class ClientProfileAdmin(admin.ModelAdmin):
             'fields': ('nom', 'prenom', 'phone', 'address', 'birth_date', 'nationality')
         }),
         ('KYC', {
-            'fields': ('kyc_status', 'id_document')
+            'fields': ('kyc_status', 'document')
         }),
         ('Préférences', {
             'fields': ('preferred_language',)
