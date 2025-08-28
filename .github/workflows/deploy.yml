@@ -1,4 +1,4 @@
-name: Deploy to VPS
+name: Deploy YXplore
 
 on:
   push:
@@ -19,12 +19,12 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Deploy to DEV
+      - name: Deploy YXplore DEV
         if: github.ref == 'refs/heads/dev'
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} '
             set -e
-            cd ${{ secrets.DEPLOY_DEV }}
+            cd ${{ secrets.DEPLOY_YXPLORE_DEV }}
 
             if [ -d ".git" ]; then
               echo "📥 Repo exists, fetching latest changes..."
@@ -32,18 +32,20 @@ jobs:
               git reset --hard origin/dev
             fi
 
-            # Vérifier si Dockerfile, docker-compose.yml ou requirements.txt ont changé
             if git diff --name-only HEAD@{1} HEAD | grep -E "^(Dockerfile|docker-compose\.yml|requirements\.txt)$"; then
               echo "⚡ Docker/requirements changed → rebuild containers"
               docker compose down
               docker compose build --no-cache
               docker compose up -d
+
+              echo "🔍 Vérification des conteneurs..."
+              docker compose ps
+
             else
               echo "♻️ No infra change → restart containers"
               docker compose restart
             fi
 
-            # Vérifier si un modèle Django a changé
             if git diff --name-only HEAD@{1} HEAD | grep -E "models.*\.py$"; then
               echo "🛠️ Django models changed → running makemigrations & migrate"
               docker compose exec app python manage.py makemigrations --noinput
@@ -51,12 +53,12 @@ jobs:
             fi
           '
 
-      - name: Deploy to PROD
+      - name: Deploy YXplore PROD
         if: github.ref == 'refs/heads/main'
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} '
             set -e
-            cd ${{ secrets.DEPLOY_PROD }}
+            cd ${{ secrets.DEPLOY_YXPLORE_PROD }}
 
             if [ -d ".git" ]; then
               echo "📥 Repo exists, fetching latest changes..."
@@ -64,22 +66,23 @@ jobs:
               git reset --hard origin/main
             fi
 
-            # Vérifier si Dockerfile, docker-compose.yml ou requirements.txt ont changé
             if git diff --name-only HEAD@{1} HEAD | grep -E "^(Dockerfile|docker-compose\.yml|requirements\.txt)$"; then
               echo "⚡ Docker/requirements changed → rebuild containers"
               docker compose down
               docker compose build --no-cache
               docker compose up -d
+
+              echo "🔍 Vérification des conteneurs..."
+              docker compose ps
+
             else
               echo "♻️ No infra change → restart containers"
               docker compose restart
             fi
 
-            # Vérifier si un modèle Django a changé
             if git diff --name-only HEAD@{1} HEAD | grep -E "models.*\.py$"; then
               echo "🛠️ Django models changed → running makemigrations & migrate"
               docker compose exec app python manage.py makemigrations --noinput
               docker compose exec app python manage.py migrate --noinput
             fi
           '
-
