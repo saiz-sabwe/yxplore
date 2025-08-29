@@ -559,28 +559,34 @@ class FlightView(View):
                         logger.error(f"Erreur lors de la récupération du marchand par défaut: {e}")
                         return JsonResponse({'error': 'Erreur lors de la récupération du marchand'}, status=400)
                     
-                    # Création du FlightBooking
+                    # Récupération des détails complets de l'offre Duffel
+                    try:
+                        from .duffel_service import duffel_service
+                        offer_details = duffel_service.get_offer_details(offer_id)
+                        if not offer_details:
+                            logger.warning(f"Impossible de récupérer les détails de l'offre Duffel: {offer_id}")
+                    except Exception as e:
+                        logger.warning(f"Erreur lors de la récupération des détails Duffel: {e}")
+                        offer_details = None
+
                     # Extraction des informations de vol depuis les données Duffel
-                    origin = "N/A"  # Valeur par défaut
-                    destination = "N/A"  # Valeur par défaut
-                    departure_date = datetime.now()  # Valeur par défaut
+                    origin = "N/A"
+                    destination = "N/A"
+                    departure_date = datetime.now()
                     
-                    # Si nous avons des données Duffel, essayons d'extraire les vraies informations
-                    if 'duffel_data' in locals() and data:
-                        # Essayer d'extraire depuis les données Duffel
+                    if offer_details and 'slices' in offer_details and offer_details['slices']:
                         try:
-                            # Les données peuvent être dans différents formats selon l'API
-                            if 'slices' in data and data['slices']:
-                                first_slice = data['slices'][0]
-                                if 'segments' in first_slice and first_slice['segments']:
-                                    first_segment = first_slice['segments'][0]
-                                    origin = first_segment.get('origin', {}).get('iata_code', 'N/A')
-                                    destination = first_segment.get('destination', {}).get('iata_code', 'N/A')
-                                    if 'departing_at' in first_segment:
-                                        departure_date = datetime.fromisoformat(first_segment['departing_at'].replace('Z', '+00:00'))
+                            first_slice = offer_details['slices'][0]
+                            if 'segments' in first_slice and first_slice['segments']:
+                                first_segment = first_slice['segments'][0]
+                                origin = first_segment.get('origin', {}).get('iata_code', 'N/A')
+                                destination = first_segment.get('destination', {}).get('iata_code', 'N/A')
+                                if 'departing_at' in first_segment:
+                                    departure_date = datetime.fromisoformat(first_segment['departing_at'].replace('Z', '+00:00'))
                         except Exception as e:
                             logger.warning(f"Impossible d'extraire les données de vol depuis Duffel: {e}")
                     
+                    # Création du FlightBooking
                     booking = FlightBooking.objects.create(
                         client=client_profile,
                         agency=agency,
@@ -614,10 +620,10 @@ class FlightView(View):
                             update_by=request.user
                         )
 
-                    # Création des détails de réservation
+                    # Création des détails de réservation avec les vraies données Duffel
                     FlightBookingDetail.objects.create(
                         booking=booking,
-                        duffel_data=data,
+                        duffel_data=offer_details if offer_details else data,
                         create_by=request.user,
                         update_by=request.user
                     )
@@ -627,24 +633,36 @@ class FlightView(View):
                 return JsonResponse({
                     'resultat': 'SUCCESS',
                     'message': 'Réservation créée avec succès',
-                    'redirect_url': f'/flights/pay/{booking.uuid}/'
+                    'redirect_url': f'/flights/pay/{booking.uuid}/',
+                    'booking_id': str(booking.uuid),
+                    'booking_reference': booking.booking_reference
                 })
 
             except Exception as e:
                 logger.error(f"Erreur lors de la création de la réservation: {str(e)}")
-                return JsonResponse({'error': f'Erreur lors de la création: {str(e)}'}, status=500)
+                return JsonResponse({
+                    'resultat': 'FAIL',
+                    'message': f'Erreur lors de la création: {str(e)}'
+                }, status=500)
 
         except json.JSONDecodeError:
-            return JsonResponse({'error': 'Données JSON invalides'}, status=400)
+            return JsonResponse({
+                'resultat': 'FAIL',
+                'message': 'Données JSON invalides'
+            }, status=400)
         except Exception as e:
             logger.error(f"Erreur dans ajax_create_booking: {str(e)}")
-            return JsonResponse({'error': 'Erreur interne'}, status=500)
+            return JsonResponse({
+                'resultat': 'FAIL',
+                'message': 'Erreur interne du serveur'
+            }, status=500)
 
     def ajax_book(self, request):
         """
         Méthode de réservation principale (alias pour ajax_create_booking)
         """
         return self.ajax_create_booking(request)
+
 
     def ajax_pay_booking(self, request, booking_id):
         """Paiement d'une réservation via AJAX"""

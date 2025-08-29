@@ -386,40 +386,40 @@ Flight list START -->
 								<!-- Icon -->
 								<div class="icon-lg bg-danger bg-opacity-10 text-danger rounded-circle mx-auto mb-3">
 									<i class="fa-solid fa-exclamation-triangle"></i>
-								</div>
-								<!-- Title -->
+											</div>
+									<!-- Title -->
 								<h4>Erreur de recherche</h4>
 								<!-- Content -->
 								<p class="mb-4">{{ error }}</p>
 								<!-- Button -->
 								<a href="{% url 'module_flight:search_flight' %}" class="btn btn-primary">Nouvelle recherche</a>
-							</div>
-						</div>
+								</div>
+								</div>
 						<!-- Message d'erreur END -->
 					{% elif offers %}
 						{% for offer in offers %}
-						<!-- Ticket item START -->
-						<div class="card border">
-							<!-- card-body START -->
-							<div class="card-body p-4 pb-0">
-								<div class="row g-4">
-									<!-- Air line name -->
-									<div class="col-md-3">
-										<!-- Image -->
+					<!-- Ticket item START -->
+					<div class="card border">
+						<!-- card-body START -->
+						<div class="card-body p-4 pb-0">
+							<div class="row g-4">
+								<!-- Air line name -->
+								<div class="col-md-3">
+									<!-- Image -->
 										{% if offer.owner.logo_symbol_url %}
 											<img src="{{ offer.owner.logo_symbol_url }}" class="w-80px mb-3" alt="{{ offer.owner.name }}" style="max-height: 40px;">
 										{% else %}
 											<img src="{% static 'assets/images/element/09.svg' %}" class="w-80px mb-3" alt="">
 										{% endif %}
-										<!-- Title -->
+									<!-- Title -->
 										<h6 class="fw-normal mb-0">{{ offer.owner.name|default:"Compagnie aérienne" }}</h6>
 										<h6 class="fw-normal mb-0 text-muted">{{ offer.owner.iata_code }}</h6>
 										<small class="text-muted">{{ offer.id|slice:":10" }}</small>
-									</div>
+								</div>
 
-									<!-- Airport detail -->
-									<div class="col-sm-4 col-md-3">
-										<!-- Title -->
+								<!-- Airport detail -->
+								<div class="col-sm-4 col-md-3">
+									<!-- Title -->
 										<h4>{{ offer.slices.0.segments.0.departing_at|slice:"11:16"|default:"--:--" }}</h4>
 										<h6 class="mb-0">{{ offer.slices.0.segments.0.departing_at|slice:":10"|date:"D, d M Y" }}</h6>
 										<p class="mb-0">
@@ -428,11 +428,11 @@ Flight list START -->
 												<br><small class="text-muted">Terminal {{ offer.slices.0.origin.terminal }}</small>
 											{% endif %}
 										</p>
-									</div>
+								</div>
 
-									<!-- Airport detail -->
-									<div class="col-sm-4 col-md-3">
-										<!-- Title -->
+								<!-- Airport detail -->
+								<div class="col-sm-4 col-md-3">
+									<!-- Title -->
 										<h4>{{ offer.slices.0.segments.0.arriving_at|slice:"11:16"|default:"--:--" }}</h4>
 										<h6 class="mb-0">{{ offer.slices.0.segments.0.arriving_at|slice:":10"|date:"D, d M Y" }}</h6>
 										<p class="mb-0">
@@ -441,11 +441,11 @@ Flight list START -->
 												<br><small class="text-muted">Terminal {{ offer.slices.0.destination.terminal }}</small>
 											{% endif %}
 										</p>
-									</div>
+								</div>
 
+								<!-- Price -->
+								<div class="col-sm-4 col-md-3">
 									<!-- Price -->
-									<div class="col-sm-4 col-md-3">
-										<!-- Price -->
 										<h4>{{ offer.total_amount }} {{ offer.total_currency }}</h4>
 										{% if offer.base_amount and offer.tax_amount %}
 											<small class="text-muted">
@@ -454,30 +454,30 @@ Flight list START -->
 											</small>
 										{% endif %}
 										<a href="{% url 'module_flight:flight_detail' offer.id %}" class="btn btn-dark">Réserver maintenant</a>
-										<button class="btn btn-link text-decoration-underline p-0 mb-0" data-bs-toggle="modal" data-bs-target="#flightdetail">
+									<button class="btn btn-link text-decoration-underline p-0 mb-0" data-bs-toggle="modal" data-bs-target="#flightdetail">
 											<i class="bi bi-eye-fill me-1"></i>Détails du vol
-										</button>
-									</div>
-
+									</button>
 								</div>
-							</div>
-							<!-- card-body END -->
 
-							<!-- card footer -->
-							<div class="card-footer p-4">
-								<div class="bg-light p-2 rounded-2">
-									<ul class="list-inline d-sm-flex justify-content-sm-between mb-0 mx-4">
+							</div>
+						</div>
+						<!-- card-body END -->
+
+						<!-- card footer -->
+						<div class="card-footer p-4">
+							<div class="bg-light p-2 rounded-2">
+								<ul class="list-inline d-sm-flex justify-content-sm-between mb-0 mx-4">
 										<li class="list-inline-item text-danger">
 											Plus que {{ offer.available_seats|default:10 }} places disponibles
 										</li>
-										<li class="list-inline-item">
+								<li class="list-inline-item">
 											Durée totale : {{ offer.slices.0.duration|default:"--" }}
 											{% if offer.slices.0.stops > 0 %}
 												({{ offer.slices.0.stops }} escale{{ offer.slices.0.stops|pluralize:"s" }})
 											{% else %}
 												(Direct)
 											{% endif %}
-										</li>
+								</li>
 										<li class="list-inline-item text-success">
 											{% if offer.conditions.refundable %}
 												Remboursable
@@ -486,10 +486,10 @@ Flight list START -->
 											{% else %}
 												Non modifiable
 											{% endif %}
-										</li>
-									</ul>
-								</div>
-								
+									</li>
+								</ul>
+											</div>
+
 								<!-- Informations supplémentaires -->
 								<div class="row mt-3">
 									<div class="col-md-6">
@@ -501,7 +501,7 @@ Flight list START -->
 												• {{ offer.slices.0.fare_brand_name }}
 											{% endif %}
 										</small>
-									</div>
+													</div>
 									<div class="col-md-6 text-end">
 										<small class="text-muted">
 											{% if offer.payment.requires_instant_payment %}
@@ -511,28 +511,28 @@ Flight list START -->
 												📋 Documents d'identité requis
 											{% endif %}
 										</small>
-									</div>
-								</div>
-							</div>
-						</div>
-						<!-- Ticket item END -->
+															</div>
+														</div>
+													</div>
+												</div>
+												<!-- Ticket item END -->
 						{% endfor %}
 					{% else %}
 						<!-- Aucun résultat START -->
 						<div class="card border">
 							<div class="card-body p-5 text-center">
-								<!-- Icon -->
+															<!-- Icon -->
 								<div class="icon-lg bg-primary bg-opacity-10 text-primary rounded-circle mx-auto mb-3">
 									<i class="fa-solid fa-plane"></i>
-								</div>
-								<!-- Title -->
+															</div>
+														<!-- Title -->
 								<h4>Aucun vol trouvé</h4>
 								<!-- Content -->
 								<p class="mb-4">Aucun vol disponible pour votre recherche. Essayez de modifier vos critères ou de changer les dates.</p>
-								<!-- Button -->
+						<!-- Button -->
 								<a href="{% url 'module_flight:search_flight' %}" class="btn btn-primary">Nouvelle recherche</a>
-							</div>
-						</div>
+					</div>
+								</div>
 						<!-- Aucun résultat END -->
 					{% endif %}
 

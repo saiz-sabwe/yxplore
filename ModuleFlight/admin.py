@@ -155,7 +155,7 @@ class FlightBookingAdmin(admin.ModelAdmin):
     readonly_fields = [
         'id', 'uuid', 'booking_reference', 'create', 'last_update',
         'confirmed_at', 'paid_at', 'commission_amount', 'total_with_commission',
-        'formatted_passenger_data', 'formatted_flight_data'
+        'formatted_passenger_data', 'formatted_flight_data', 'passengers_links', 'details_link'
     ]
     
     fieldsets = (
@@ -185,11 +185,11 @@ class FlightBookingAdmin(admin.ModelAdmin):
             )
         }),
         ('Données passagers', {
-            'fields': ('formatted_passenger_data',),
+            'fields': ('formatted_passenger_data', 'passengers_links'),
             'classes': ['collapse']
         }),
         ('Données de vol', {
-            'fields': ('formatted_flight_data',),
+            'fields': ('formatted_flight_data', 'details_link'),
             'classes': ['collapse']
         }),
         ('Métadonnées', {
@@ -218,6 +218,8 @@ class FlightBookingAdmin(admin.ModelAdmin):
     
     def price_display(self, obj):
         """Affichage du prix avec devise"""
+        if obj.price is None:
+            return "Prix non défini"
         return f"{obj.price} {obj.currency}"
     price_display.short_description = "Prix"
     
@@ -261,29 +263,97 @@ class FlightBookingAdmin(admin.ModelAdmin):
     
     def commission_amount(self, obj):
         """Montant de la commission"""
-        return f"{obj.calculate_commission()} {obj.currency}"
+        try:
+            if obj.price is None:
+                return "0.00 (prix non défini)"
+            return f"{obj.calculate_commission()} {obj.currency}"
+        except Exception as e:
+            return f"Erreur: {str(e)}"
     commission_amount.short_description = "Commission"
     
     def total_with_commission(self, obj):
         """Total avec commission"""
-        return f"{obj.get_total_with_commission()} {obj.currency}"
+        try:
+            if obj.price is None:
+                return "0.00 (prix non défini)"
+            return f"{obj.get_total_with_commission()} {obj.currency}"
+        except Exception as e:
+            return f"Erreur: {str(e)}"
     total_with_commission.short_description = "Total TTC"
     
     def formatted_passenger_data(self, obj):
         """Données des passagers formatées"""
-        if obj.passenger_data:
-            formatted = json.dumps(obj.passenger_data, indent=2, ensure_ascii=False)
-            return format_html('<pre>{}</pre>', formatted)
-        return "Aucune donnée"
+        try:
+            passengers = obj.passengers.all()
+            if passengers.exists():
+                passenger_list = []
+                for passenger in passengers:
+                    passenger_list.append({
+                        'Nom complet': f"{passenger.given_name} {passenger.family_name}",
+                        'Type': passenger.get_type_display(),
+                        'Genre': passenger.get_gender_display(),
+                        'Date de naissance': passenger.date_of_birth.strftime('%d/%m/%Y'),
+                        'Nationalité': passenger.nationality
+                    })
+                formatted = json.dumps(passenger_list, indent=2, ensure_ascii=False)
+                return format_html('<pre>{}</pre>', formatted)
+            else:
+                return "Aucun passager enregistré"
+        except Exception as e:
+            return f"Erreur: {str(e)}"
     formatted_passenger_data.short_description = "Données passagers"
     
     def formatted_flight_data(self, obj):
         """Données de vol formatées"""
-        if obj.flight_data:
-            formatted = json.dumps(obj.flight_data, indent=2, ensure_ascii=False)
-            return format_html('<pre>{}</pre>', formatted[:1000] + '...' if len(formatted) > 1000 else formatted)
-        return "Aucune donnée"
+        try:
+            if hasattr(obj, 'details') and obj.details:
+                duffel_data = obj.details.duffel_data
+                if duffel_data:
+                    # Afficher seulement les informations importantes
+                    flight_info = {
+                        'ID Offre Duffel': duffel_data.get('id', 'N/A'),
+                        'Compagnie': duffel_data.get('owner', {}).get('name', 'N/A'),
+                        'Prix': f"{duffel_data.get('total_amount', 'N/A')} {duffel_data.get('total_currency', 'N/A')}",
+                        'Slices': len(duffel_data.get('slices', [])),
+                        'Segments': sum(len(slice_data.get('segments', [])) for slice_data in duffel_data.get('slices', []))
+                    }
+                    formatted = json.dumps(flight_info, indent=2, ensure_ascii=False)
+                    return format_html('<pre>{}</pre>', formatted)
+                else:
+                    return "Données Duffel vides"
+            else:
+                return "Aucun détail de vol enregistré"
+        except Exception as e:
+            return f"Erreur: {str(e)}"
     formatted_flight_data.short_description = "Données de vol"
+    
+    def passengers_links(self, obj):
+        """Liens vers les passagers"""
+        try:
+            passengers = obj.passengers.all()
+            if passengers.exists():
+                links = []
+                for passenger in passengers:
+                    url = reverse('admin:ModuleFlight_passenger_change', args=[passenger.id])
+                    links.append(f'<a href="{url}">{passenger.given_name} {passenger.family_name}</a>')
+                return format_html('<br>'.join(links))
+            else:
+                return "Aucun passager"
+        except Exception as e:
+            return f"Erreur: {str(e)}"
+    passengers_links.short_description = "Passagers"
+    
+    def details_link(self, obj):
+        """Lien vers les détails de réservation"""
+        try:
+            if hasattr(obj, 'details') and obj.details:
+                url = reverse('admin:ModuleFlight_flightbookingdetail_change', args=[obj.details.id])
+                return format_html('<a href="{}">Voir les détails Duffel</a>', url)
+            else:
+                return "Aucun détail"
+        except Exception as e:
+            return f"Erreur: {str(e)}"
+    details_link.short_description = "Détails Duffel"
     
     actions = ['mark_as_confirmed', 'mark_as_paid', 'cancel_bookings']
     
@@ -357,7 +427,7 @@ class PassengerAdmin(admin.ModelAdmin):
         }),
         ('Informations Duffel', {
             'fields': (
-                'duffel_passenger_id', 'duffel_identity_document_id'
+                'duffel_passenger_id', 'duffel_fare_basis_code'
             ),
             'classes': ['collapse']
         }),

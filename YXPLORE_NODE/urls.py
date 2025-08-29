@@ -29,6 +29,7 @@ urlpatterns = [
 
     # Modules principaux
     path('flights/', include('ModuleFlight.urls')),  # Vols
+    path('', include('ModuleFlight.urls')),  # Vols
     # path('hotels/', include('ModuleHotel.urls')),  # Hôtels
     # path('cars/', include('ModuleCar.urls')),  # Voitures
     path('profils/', include('ModuleProfils.urls')),  # Profils utilisateurs

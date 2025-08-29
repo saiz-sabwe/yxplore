@@ -5,7 +5,7 @@
 	<nav class="navbar navbar-expand-xl">
 		<div class="container">
 			<!-- Logo START -->
-			<a class="navbar-brand" href="index.html">
+			<a class="navbar-brand" href="{% url 'module_flight:search_flight' %}">
 				<img class="light-mode-item navbar-brand-item" src="{% static 'assets/images/logo.svg' %}" alt="logo">
 				<img class="dark-mode-item navbar-brand-item" src="{% static 'assets/images/logo-light.svg' %}" alt="logo">
 			</a>
@@ -35,7 +35,7 @@
 					<!-- <li class="nav-item"> <a class="nav-link active" href="index.html"><i class="fa-solid fa-hotel me-2"></i>Hotel</a>	</li> -->
 
 					<!-- Nav item Flight -->
-					<li class="nav-item"> <a class="nav-link active" href="index-flight.html"><i class="fa-solid fa-plane me-2"></i>Flight</a>	</li>
+					<li class="nav-item"> <a class="nav-link active" href="{% url 'module_flight:search_flight' %}"><i class="fa-solid fa-plane me-2"></i>Flight</a>	</li>
 
 					<!-- Nav item Tour -->
 					<!-- <li class="nav-item"> <a class="nav-link" href="index-tour.html"><i class="fa-solid fa-globe-americas me-2"></i>Tour</a> </li> -->
@@ -115,18 +115,39 @@
 									<img class="avatar-img rounded-circle shadow" src="{% static 'assets/images/avatar/01.jpg' %}" alt="avatar">
 								</div>
 								<div>
-									<a class="h6 mt-2 mt-sm-0" href="#">Lori Ferguson</a>
-									<p class="small m-0">example@gmail.com</p>
+									<a class="h6 mt-2 mt-sm-0" href="#">{{ user.username }}</a>
+									<p class="small m-0">{{ user.email }}
+</p>
 								</div>
 							</div>
 						</li>
 
 						<!-- Links -->
 						<li> <hr class="dropdown-divider"></li>
-						<li><a class="dropdown-item" href="#"><i class="bi bi-bookmark-check fa-fw me-2"></i>My Bookings</a></li>
-						<li><a class="dropdown-item" href="#"><i class="bi bi-heart fa-fw me-2"></i>My Wishlist</a></li>
-						<li><a class="dropdown-item" href="#"><i class="bi bi-gear fa-fw me-2"></i>Settings</a></li>
-						<li><a class="dropdown-item" href="#"><i class="bi bi-info-circle fa-fw me-2"></i>Help Center</a></li>
+						<li>
+							{% if user.is_authenticated %}
+								{% if user.clientprofile_profile %}
+									<a class="dropdown-item" href="{% url 'module_profils:kyc_client' %}">
+										<i class="bi bi-person-check fa-fw me-2"></i>Profil Client
+									</a>
+								{% elif user.merchantprofile_profile %}
+									<a class="dropdown-item" href="{% url 'module_profils:kyc_merchant' %}">
+										<i class="bi bi-building-check fa-fw me-2"></i>Profil Marchand
+									</a>
+								{% else %}
+									<a class="dropdown-item" href="#">
+										<i class="bi bi-person fa-fw me-2"></i>Profil
+									</a>
+								{% endif %}
+							{% else %}
+								<a class="dropdown-item" href="#">
+									<i class="bi bi-person fa-fw me-2"></i>Profil
+								</a>
+							{% endif %}
+						</li>
+{#						<li><a class="dropdown-item" href="#"><i class="bi bi-heart fa-fw me-2"></i>My Wishlist</a></li>#}
+{#						<li><a class="dropdown-item" href="#"><i class="bi bi-gear fa-fw me-2"></i>Settings</a></li>#}
+{#						<li><a class="dropdown-item" href="#"><i class="bi bi-info-circle fa-fw me-2"></i>Help Center</a></li>#}
 						<li>
 							<form method="post" action="{% url 'module_profils:logout' %}" style="display: inline;">
 								{% csrf_token %}

@@ -575,10 +575,14 @@ class FlightBooking(models.Model):
     
     def calculate_commission(self):
         """Calcule la commission sur cette réservation"""
+        if self.price is None:
+            return Decimal('0.00')
         return (self.price * self.commission_rate) / 100
     
     def get_total_with_commission(self):
         """Retourne le prix total avec commission"""
+        if self.price is None:
+            return Decimal('0.00')
         return self.price + self.calculate_commission()
     
     def is_cancellable(self):
