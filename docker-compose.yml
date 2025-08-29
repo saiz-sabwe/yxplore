@@ -33,7 +33,7 @@ services:
     depends_on:
       - pgsql
     networks:
-      - web_network
+      - web_yxplore
 
 
   pgsql:
