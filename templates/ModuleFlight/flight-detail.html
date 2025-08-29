@@ -1,0 +1,685 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %} {% load flight_filters %} {% endcomment %}
+
+{% block title %}Détail du vol - {{ offer.owner.name }}{% endblock title%}
+{% block extra_css %} {% endblock extra_css%}
+
+{% block extra_javascript %} {% endblock extra_javascript%}
+
+{% block content %}
+{% csrf_token %}
+<!-- **************** MAIN CONTENT START **************** -->
+
+<!-- =======================
+Flight Detail START -->
+<section class="pt-0">
+	<div class="container">
+		<div class="row">
+			<!-- Main content START -->
+			<div class="col-xl-8 col-xxl-9">
+				<div class="vstack gap-4">
+					
+					<!-- Header START -->
+					<div class="card border">
+						<div class="card-body p-4">
+							<div class="row align-items-center">
+								<div class="col-md-8">
+									<h2 class="mb-2">{{ offer.owner.name }}</h2>
+									<p class="mb-0 text-muted">
+										<strong>{{ offer.slices.0.origin.iata_code }}</strong> → <strong>{{ offer.slices.0.destination.iata_code }}</strong>
+										{% if offer.slices|length > 1 %}
+											• Aller-retour
+										{% else %}
+											• Aller simple
+										{% endif %}
+									</p>
+								</div>
+								<div class="col-md-4 text-end">
+									<h3 class="text-primary mb-0">{{ offer.total_amount }} {{ offer.total_currency }}</h3>
+									{% if offer.base_amount and offer.tax_amount %}
+										<small class="text-muted">
+											Base: {{ offer.base_amount }} {{ offer.base_currency }}<br>
+											Taxes: {{ offer.tax_amount }} {{ offer.tax_currency }}
+										</small>
+									{% endif %}
+								</div>
+							</div>
+						</div>
+					</div>
+					<!-- Header END -->
+
+					<!-- Flight Details START -->
+					{% for slice in offer.slices %}
+					<div class="card border">
+						<div class="card-header bg-light">
+							<h5 class="mb-0">
+								{% if forloop.first %}
+									Vol aller
+								{% else %}
+									Vol retour
+								{% endif %}
+								{% if slice.fare_brand_name %}
+									- {{ slice.fare_brand_name }}
+								{% endif %}
+							</h5>
+						</div>
+						<div class="card-body p-4">
+							{% for segment in slice.segments %}
+							<div class="row g-4 {% if not forloop.first %}border-top pt-4{% endif %}">
+								<!-- Departure -->
+								<div class="col-md-4">
+									<div class="text-center">
+										<h4 class="text-primary">{{ segment.departing_at|slice:"11:16" }}</h4>
+										<p class="mb-1"><strong>{{ segment.departing_at|slice:":10"|date:"D, d M Y" }}</strong></p>
+										<p class="mb-0">
+											<strong>{{ segment.origin.iata_code }}</strong><br>
+											{{ segment.origin.name }}
+											{% if segment.origin.terminal %}
+												<br><small class="text-muted">Terminal {{ segment.origin.terminal }}</small>
+											{% endif %}
+											{% if segment.origin.city_name %}
+												<br><small class="text-muted">{{ segment.origin.city_name }}, {{ segment.origin.city.iata_country_code }}</small>
+											{% endif %}
+										</p>
+									</div>
+								</div>
+
+								<!-- Flight Info -->
+								<div class="col-md-4">
+									<div class="text-center">
+										<div class="d-flex align-items-center justify-content-center mb-2">
+											<div class="bg-primary rounded-circle p-2 me-2">
+												<i class="fas fa-plane text-white"></i>
+											</div>
+											<span class="text-muted">{{ segment.duration }}</span>
+										</div>
+										<p class="mb-1">
+											<strong>{{ segment.operating_carrier.name }}</strong><br>
+											Vol {{ segment.operating_carrier.flight_number }}
+										</p>
+										{% if segment.distance %}
+											<small class="text-muted">{{ segment.distance|floatformat:0 }} km</small>
+										{% endif %}
+										{% if segment.aircraft %}
+											<br><small class="text-muted">🛩️ {{ segment.aircraft.name }} ({{ segment.aircraft.iata_code }})</small>
+										{% endif %}
+									</div>
+								</div>
+
+								<!-- Arrival -->
+								<div class="col-md-4">
+									<div class="text-center">
+										<h4 class="text-success">{{ segment.arriving_at|slice:"11:16" }}</h4>
+										<p class="mb-1"><strong>{{ segment.arriving_at|slice:":10"|date:"D, d M Y" }}</strong></p>
+										<p class="mb-0">
+											<strong>{{ segment.destination.iata_code }}</strong><br>
+											{{ segment.destination.name }}
+											{% if segment.destination.terminal %}
+												<br><small class="text-muted">Terminal {{ segment.destination.terminal }}</small>
+											{% endif %}
+											{% if segment.destination.city_name %}
+												<br><small class="text-muted">{{ segment.destination.city_name }}, {{ segment.destination.city.iata_country_code }}</small>
+											{% endif %}
+										</p>
+									</div>
+								</div>
+							</div>
+							{% endfor %}
+
+							<!-- Slice Summary -->
+							<div class="row mt-4 pt-3 border-top">
+								<div class="col-md-6">
+									<strong>Durée totale :</strong> {{ slice.duration }}
+									{% if slice.stops > 0 %}
+										({{ slice.stops }} escale{{ slice.stops|pluralize:"s" }})
+									{% else %}
+										(Direct)
+									{% endif %}
+								</div>
+								<div class="col-md-6 text-end">
+									{% if slice.conditions %}
+										{% if slice.conditions.change_before_departure.allowed %}
+											<span class="badge bg-success">Modifiable</span>
+											{% if slice.conditions.change_before_departure.penalty_amount %}
+												<br><small class="text-muted">Frais: {{ slice.conditions.change_before_departure.penalty_amount }} {{ slice.conditions.change_before_departure.penalty_currency }}</small>
+											{% endif %}
+										{% else %}
+											<span class="badge bg-warning">Non modifiable</span>
+										{% endif %}
+									{% endif %}
+								</div>
+							</div>
+						</div>
+					</div>
+					{% endfor %}
+					<!-- Flight Details END -->
+
+					<!-- Pricing Details START -->
+					<div class="card border">
+						<div class="card-header bg-light">
+							<h5 class="mb-0">Détails tarifaires</h5>
+						</div>
+						<div class="card-body p-4">
+							<div class="row">
+								<div class="col-md-6">
+									<h6>Prix détaillés</h6>
+									<ul class="list-unstyled">
+										<li class="d-flex justify-content-between">
+											<span>Prix de base :</span>
+											<strong>{{ offer.base_amount }} {{ offer.base_currency }}</strong>
+										</li>
+										<li class="d-flex justify-content-between">
+											<span>Taxes et frais :</span>
+											<strong>{{ offer.tax_amount }} {{ offer.tax_currency }}</strong>
+										</li>
+										<li class="d-flex justify-content-between border-top pt-2">
+											<span class="h6">Total :</span>
+											<strong class="h6 text-primary">{{ offer.total_amount }} {{ offer.total_currency }}</strong>
+										</li>
+									</ul>
+								</div>
+								<div class="col-md-6">
+									<h6>Informations complémentaires</h6>
+									<ul class="list-unstyled">
+										{% if offer.total_emissions_kg %}
+										<li class="mb-2">
+											🌱 <strong>Emissions CO₂ :</strong> {{ offer.total_emissions_kg }} kg
+										</li>
+										{% endif %}
+										{% if offer.payment.requires_instant_payment %}
+										<li class="mb-2">
+											💳 <strong>Paiement immédiat requis</strong>
+										</li>
+										{% endif %}
+										{% if offer.payment.payment_required_by %}
+										<li class="mb-2">
+											⏰ <strong>Paiement avant :</strong> {{ offer.payment.payment_required_by|slice:":10"|date:"d/m/Y" }}
+										</li>
+										{% endif %}
+										{% if offer.expires_at %}
+										<li class="mb-2">
+											⏳ <strong>Offre expire :</strong> {{ offer.expires_at|slice:":10"|date:"d/m/Y" }}
+										</li>
+										{% endif %}
+										{% if offer.payment.price_guarantee_expires_at %}
+										<li class="mb-2">
+											🔒 <strong>Garantie de prix jusqu'au :</strong> {{ offer.payment.price_guarantee_expires_at|slice:":10"|date:"d/m/Y" }}
+										</li>
+										{% endif %}
+									</ul>
+								</div>
+							</div>
+						</div>
+					</div>
+					<!-- Pricing Details END -->
+
+					<!-- Conditions START -->
+					<div class="card border">
+						<div class="card-header bg-light">
+							<h5 class="mb-0">Conditions de l'offre</h5>
+						</div>
+						<div class="card-body p-4">
+							<div class="row">
+								<div class="col-md-6">
+									<h6>Modifications</h6>
+									{% if offer.conditions.changeable %}
+										<p class="text-success">
+											✅ <strong>Modifications autorisées</strong>
+											{% if offer.conditions.change_penalty_amount %}
+												<br>Frais de modification : {{ offer.conditions.change_penalty_amount }} {{ offer.conditions.change_penalty_currency }}
+											{% endif %}
+										</p>
+									{% else %}
+										<p class="text-warning">❌ <strong>Modifications non autorisées</strong></p>
+									{% endif %}
+								</div>
+								<div class="col-md-6">
+									<h6>Remboursements</h6>
+									{% if offer.conditions.refundable %}
+										<p class="text-success">
+											✅ <strong>Remboursements autorisés</strong>
+											{% if offer.conditions.refund_penalty_amount %}
+												<br>Frais de remboursement : {{ offer.conditions.refund_penalty_amount }} {{ offer.conditions.refund_penalty_currency }}
+											{% endif %}
+										</p>
+									{% else %}
+										<p class="text-warning">❌ <strong>Remboursements non autorisés</strong></p>
+									{% endif %}
+								</div>
+							</div>
+						</div>
+					</div>
+					<!-- Conditions END -->
+
+					<!-- Passengers START -->
+					{% if offer.passengers %}
+					<div class="card border">
+						<div class="card-header bg-light">
+							<h5 class="mb-0">Configuration des passagers</h5>
+						</div>
+						<div class="card-body p-4">
+							<div class="row">
+								{% for passenger in offer.passengers %}
+								<div class="col-md-4 mb-3">
+									<div class="border rounded p-3">
+										<h6 class="mb-2">
+											{% if passenger.type == 'adult' %}
+												👤 Adulte
+											{% elif passenger.type == 'child' %}
+												👶 Enfant
+											{% elif passenger.type == 'infant_without_seat' %}
+												🍼 Nourrisson (sans siège)
+											{% else %}
+												👤 {{ passenger.type|title }}
+											{% endif %}
+										</h6>
+										{% if passenger.age %}
+											<p class="mb-1"><small>Âge : {{ passenger.age }} an{{ passenger.age|pluralize:"s" }}</small></p>
+										{% endif %}
+										{% if passenger.fare_type %}
+											<p class="mb-0"><small>Type de tarif : {{ passenger.fare_type }}</small></p>
+										{% endif %}
+									</div>
+								</div>
+								{% endfor %}
+							</div>
+						</div>
+					</div>
+					{% endif %}
+					<!-- Passengers END -->
+
+					<!-- Baggage and Amenities START -->
+					{% if offer.slices.0.segments.0.passengers %}
+					<div class="card border">
+						<div class="card-header bg-light">
+							<h5 class="mb-0">Bagages et équipements</h5>
+						</div>
+						<div class="card-body p-4">
+							{% for passenger in offer.slices.0.segments.0.passengers %}
+							<div class="row mb-3 {% if not forloop.first %}border-top pt-3{% endif %}">
+								<div class="col-md-6">
+									<h6>Bagages inclus</h6>
+									{% for baggage in passenger.baggages %}
+									<div class="d-flex align-items-center mb-2">
+										{% if baggage.type == 'checked' %}
+											🛄 <span class="ms-2">{{ baggage.quantity }} bagage{{ baggage.quantity|pluralize:"s" }} en soute</span>
+										{% elif baggage.type == 'carry_on' %}
+											👜 <span class="ms-2">{{ baggage.quantity }} bagage{{ baggage.quantity|pluralize:"s" }} à main</span>
+										{% else %}
+											💼 <span class="ms-2">{{ baggage.quantity }} {{ baggage.type }}</span>
+										{% endif %}
+									</div>
+									{% endfor %}
+								</div>
+								<div class="col-md-6">
+									<h6>Équipements en cabine</h6>
+									{% if passenger.cabin.amenities.wifi.available %}
+										<div class="d-flex align-items-center mb-2">
+											📶 <span class="ms-2">WiFi 
+											{% if passenger.cabin.amenities.wifi.cost == 'paid' %}
+												(payant)
+											{% else %}
+												(gratuit)
+											{% endif %}
+											</span>
+										</div>
+									{% endif %}
+									{% if passenger.cabin.amenities.power.available %}
+										<div class="d-flex align-items-center mb-2">
+											🔌 <span class="ms-2">Prise électrique disponible</span>
+										</div>
+									{% endif %}
+									{% if passenger.cabin.amenities.seat.pitch %}
+										<div class="d-flex align-items-center mb-2">
+											💺 <span class="ms-2">Espacement siège: {{ passenger.cabin.amenities.seat.pitch }}"</span>
+										</div>
+									{% endif %}
+								</div>
+							</div>
+							{% endfor %}
+						</div>
+					</div>
+					{% endif %}
+					<!-- Baggage and Amenities END -->
+
+					<!-- Loyalty Programs START -->
+					{% if offer.supported_loyalty_programmes %}
+					<div class="card border">
+						<div class="card-header bg-light">
+							<h5 class="mb-0">Programmes de fidélité supportés</h5>
+						</div>
+						<div class="card-body p-4">
+							<div class="row">
+								{% for program in offer.supported_loyalty_programmes %}
+								<div class="col-md-2 col-sm-3 col-4 mb-2">
+									<span class="badge bg-light text-dark">{{ program }}</span>
+								</div>
+								{% endfor %}
+							</div>
+						</div>
+					</div>
+					{% endif %}
+					<!-- Loyalty Programs END -->
+
+					<!-- Documents Required START -->
+					{% if offer.supported_passenger_identity_document_types %}
+					<div class="card border">
+						<div class="card-header bg-light">
+							<h5 class="mb-0">Documents d'identité supportés</h5>
+						</div>
+						<div class="card-body p-4">
+							<div class="row">
+								{% for doc_type in offer.supported_passenger_identity_document_types %}
+								<div class="col-md-4 mb-2">
+									{% if doc_type == 'passport' %}
+										🛂 <span class="ms-2">Passeport</span>
+									{% elif doc_type == 'known_traveler_number' %}
+										🆔 <span class="ms-2">Numéro de voyageur connu</span>
+									{% elif doc_type == 'passenger_redress_number' %}
+										📋 <span class="ms-2">Numéro de recours passager</span>
+									{% else %}
+										📄 <span class="ms-2">{{ doc_type|title }}</span>
+									{% endif %}
+								</div>
+								{% endfor %}
+							</div>
+							{% if offer.passenger_identity_documents_required %}
+								<div class="alert alert-info mt-3 mb-0">
+									<strong>⚠️ Attention :</strong> Des documents d'identité sont requis pour ce vol.
+								</div>
+							{% endif %}
+						</div>
+					</div>
+					{% endif %}
+					<!-- Documents Required END -->
+
+					<!-- Technical Details START -->
+					<div class="card border">
+						<div class="card-header bg-light">
+							<h5 class="mb-0">Détails techniques complets</h5>
+						</div>
+						<div class="card-body p-4">
+							<div class="row">
+								<div class="col-md-6">
+									<h6>Informations de l'offre</h6>
+									<ul class="list-unstyled">
+										<li class="mb-2">
+											🆔 <strong>ID de l'offre :</strong> {{ offer.id }}
+										</li>
+										{% if offer.created_at %}
+										<li class="mb-2">
+											📅 <strong>Créée le :</strong> {{ offer.created_at|slice:":10"|date:"d/m/Y H:i" }}
+										</li>
+										{% endif %}
+										{% if offer.updated_at %}
+										<li class="mb-2">
+											🔄 <strong>Mise à jour le :</strong> {{ offer.updated_at|slice:":10"|date:"d/m/Y H:i" }}
+										</li>
+										{% endif %}
+										{% if offer.expires_at %}
+										<li class="mb-2">
+											⏰ <strong>Expire le :</strong> {{ offer.expires_at|slice:":10"|date:"d/m/Y H:i" }}
+										</li>
+										{% endif %}
+									</ul>
+								</div>
+								<div class="col-md-6">
+									<h6>Configuration technique</h6>
+									<ul class="list-unstyled">
+										{% if offer.owner.id %}
+										<li class="mb-2">
+											🏢 <strong>ID compagnie :</strong> {{ offer.owner.id }}
+										</li>
+										{% endif %}
+										{% if offer.owner.conditions_of_carriage_url %}
+										<li class="mb-2">
+											📋 <strong>Conditions de transport :</strong> 
+											<a href="{{ offer.owner.conditions_of_carriage_url }}" target="_blank" class="text-decoration-underline">Voir</a>
+										</li>
+										{% endif %}
+										{% if offer.owner.logo_lockup_url %}
+										<li class="mb-2">
+											🖼️ <strong>Logo complet :</strong> 
+											<a href="{{ offer.owner.logo_lockup_url }}" target="_blank" class="text-decoration-underline">Voir</a>
+										</li>
+										{% endif %}
+									</ul>
+								</div>
+							</div>
+							
+							<!-- Informations des segments -->
+							{% if offer.slices %}
+							<div class="row mt-3 pt-3 border-top">
+								<div class="col-12">
+									<h6>Détails des segments de vol</h6>
+									{% for slice in offer.slices %}
+									<div class="border rounded p-3 mb-3">
+										<h6 class="mb-2">Slice {{ forloop.counter }} - {{ slice.fare_brand_name|default:"N/A" }}</h6>
+										<div class="row">
+											<div class="col-md-6">
+												<strong>Informations générales :</strong>
+												<ul class="list-unstyled">
+													<li>ID: {{ slice.id }}</li>
+													<li>Durée: {{ slice.duration }}</li>
+													<li>Type origine: {{ slice.origin_type }}</li>
+													<li>Type destination: {{ slice.destination_type }}</li>
+													{% if slice.ngs_shelf %}
+													<li>NGS Shelf: {{ slice.ngs_shelf }}</li>
+													{% endif %}
+													{% if slice.comparison_key %}
+													<li>Clé comparaison: {{ slice.comparison_key }}</li>
+													{% endif %}
+												</ul>
+											</div>
+											<div class="col-md-6">
+												<strong>Coordonnées géographiques :</strong>
+												<ul class="list-unstyled">
+													{% if slice.origin.latitude and slice.origin.longitude %}
+													<li>Origine: {{ slice.origin.latitude|floatformat:4 }}, {{ slice.origin.longitude|floatformat:4 }}</li>
+													{% endif %}
+													{% if slice.destination.latitude and slice.destination.longitude %}
+													<li>Destination: {{ slice.destination.latitude|floatformat:4 }}, {{ slice.destination.longitude|floatformat:4 }}</li>
+													{% endif %}
+													{% if slice.origin.time_zone %}
+													<li>Fuseau origine: {{ slice.origin.time_zone }}</li>
+													{% endif %}
+													{% if slice.destination.time_zone %}
+													<li>Fuseau destination: {{ slice.destination.time_zone }}</li>
+													{% endif %}
+												</ul>
+											</div>
+										</div>
+									</div>
+									{% endfor %}
+								</div>
+							</div>
+							{% endif %}
+						</div>
+					</div>
+					<!-- Technical Details END -->
+
+					<!-- Passenger Booking Form START -->
+					<div class="card border">
+						<div class="card-header bg-light">
+							<h5 class="mb-0">📋 Réservation - Informations des passagers</h5>
+						</div>
+						<div class="card-body p-4">
+							<!-- Passenger Count Selection -->
+							<div class="row mb-4">
+								<div class="col-md-4">
+									<label for="adult-count" class="form-label">👥 Nombre d'adultes</label>
+									<select id="adult-count" class="form-select" onchange="updatePassengerForm()">
+										<option value="1">1 adulte</option>
+										<option value="2">2 adultes</option>
+										<option value="3">3 adultes</option>
+										<option value="4">4 adultes</option>
+										<option value="5">5 adultes</option>
+									</select>
+								</div>
+								<div class="col-md-4">
+									<label for="child-count" class="form-label">👶 Nombre d'enfants</label>
+									<select id="child-count" class="form-select" onchange="updatePassengerForm()">
+										<option value="0">0 enfant</option>
+										<option value="1">1 enfant</option>
+										<option value="2">2 enfants</option>
+										<option value="3">3 enfants</option>
+									</select>
+								</div>
+								<div class="col-md-4">
+									<label for="infant-count" class="form-label">🍼 Nombre de bébés</label>
+									<select id="infant-count" class="form-select" onchange="updatePassengerForm()">
+										<option value="0">0 bébé</option>
+										<option value="1">1 bébé</option>
+										<option value="2">2 bébés</option>
+									</select>
+								</div>
+							</div>
+
+							<!-- Passenger Forms Container -->
+							<div id="passenger-forms-container">
+								<!-- Les formulaires de passagers seront générés ici dynamiquement -->
+							</div>
+
+							<!-- Booking Summary -->
+							<div class="row mt-4 pt-3 border-top">
+								<div class="col-md-6">
+									<h6>📊 Résumé de la réservation</h6>
+									<div id="booking-summary">
+										<p class="mb-1"><strong>Total passagers :</strong> <span id="total-passengers">1</span></p>
+										<p class="mb-1"><strong>Prix total :</strong> <span class="text-primary">{{ offer.total_amount }} {{ offer.total_currency }}</span></p>
+									</div>
+								</div>
+								<div class="col-md-6 text-end">
+									<button type="button" class="btn btn-primary btn-lg" onclick="submitBooking()" 
+											data-offer-id="{{ offer.id }}" 
+											data-total-amount="{{ offer.total_amount }}" 
+											data-total-currency="{{ offer.total_currency }}">
+										✈️ Réserver ce vol
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+					<!-- Passenger Booking Form END -->
+
+					<!-- Action Buttons START -->
+					<div class="card border">
+						<div class="card-body p-4 text-center">
+							<div class="row g-3">
+								<div class="col-md-6">
+									<a href="{% url 'module_flight:search_flight' %}" class="btn btn-outline-primary w-100">
+										<i class="fas fa-search me-2"></i>Nouvelle recherche
+									</a>
+								</div>
+								<div class="col-md-6">
+									<button class="btn btn-primary w-100" onclick="bookFlight('{{ offer.id }}')">
+										<i class="fas fa-credit-card me-2"></i>Réserver maintenant
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+					<!-- Action Buttons END -->
+
+				</div>
+			</div>
+			<!-- Main content END -->
+
+			<!-- Right sidebar START -->
+			<aside class="col-xl-4 col-xxl-3">
+				<div class="card border sticky-top" style="top: 100px;">
+					<div class="card-body p-4">
+						<h5 class="mb-3">Résumé de la réservation</h5>
+						
+						<!-- Flight Summary -->
+						<div class="mb-3">
+							<h6 class="text-muted mb-2">Vol</h6>
+							<p class="mb-1">
+								<strong>{{ offer.slices.0.origin.iata_code }}</strong> → <strong>{{ offer.slices.0.destination.iata_code }}</strong>
+							</p>
+							<p class="mb-0 text-muted">
+								{{ offer.slices.0.segments.0.departing_at|slice:":10"|date:"d/m/Y" }}
+								{% if offer.slices|length > 1 %}
+									• Aller-retour
+								{% else %}
+									• Aller simple
+								{% endif %}
+							</p>
+						</div>
+
+						<!-- Passengers Summary -->
+						<div class="mb-3">
+							<h6 class="text-muted mb-2">Passagers</h6>
+							{% for passenger in offer.passengers %}
+							<p class="mb-1">
+								{% if passenger.type == 'adult' %}
+									👤 Adulte
+								{% elif passenger.type == 'child' %}
+									👶 Enfant
+								{% elif passenger.type == 'infant_without_seat' %}
+									🍼 Nourrisson
+								{% else %}
+									👤 {{ passenger.type|title }}
+								{% endif %}
+							</p>
+							{% endfor %}
+						</div>
+
+						<!-- Price Summary -->
+						<div class="border-top pt-3">
+							<div class="d-flex justify-content-between mb-2">
+								<span>Prix total :</span>
+								<strong class="h5 text-primary mb-0">{{ offer.total_amount }} {{ offer.total_currency }}</strong>
+							</div>
+							{% if offer.base_amount and offer.tax_amount %}
+							<small class="text-muted">
+								Inclut {{ offer.tax_amount }} {{ offer.tax_currency }} de taxes
+							</small>
+							{% endif %}
+						</div>
+
+						<!-- Book Button -->
+						<button class="btn btn-outline-primary w-100 mt-3" onclick="bookFlight('{{ offer.id }}')">
+							<i class="fas fa-arrow-down me-2"></i>Voir le formulaire de réservation
+						</button>
+					</div>
+				</div>
+			</aside>
+			<!-- Right sidebar END -->
+
+		</div>
+	</div>
+</section>
+<!-- =======================
+Flight Detail END -->
+
+<!-- **************** MAIN CONTENT END **************** -->
+{% endblock content %}
+
+{% block param %} {% endblock param %}
+
+{% block javascript %}
+<!-- Scripts JavaScript dans l'ordre correct -->
+<script src="{% static 'ModuleFlight/js/flight-search.js' %}"></script>
+<script src="{% static 'ModuleFlight/js/flight-booking.js' %}"></script>
+<script src="{% static 'ModuleFlight/js/passenger-management.js' %}"></script>
+
+<!-- Data attributes requis -->
+<div id="csrf" data-csrf="{{ csrf_token }}" hidden></div>
+<div id="user-status" data-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}" hidden></div>
+
+<script>
+function bookFlight(offerId) {
+    if (typeof showNotification === 'function') {
+        showNotification('Réservation', 'Vous êtes déjà sur la page de réservation !', 'info');
+    }
+    
+    // Faire défiler vers le formulaire de réservation
+    document.getElementById('passenger-forms-container').scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+    });
+}
+</script>
+{% endblock javascript %}

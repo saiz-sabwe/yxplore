@@ -3,7 +3,7 @@ from django.urls import path
 from . import views
 from .views import AuthView, KYCView
 
-app_name = 'profils'
+app_name = 'module_profils'
 
 urlpatterns = [
     path('', views.index, name='index'),

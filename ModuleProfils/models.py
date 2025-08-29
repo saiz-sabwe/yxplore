@@ -394,6 +394,27 @@ class UserProfileManager:
         elif MerchantProfile.user_has_profile(user):
             return MerchantProfile.get_user_kyc_status(user)
         return None
+    
+    @staticmethod
+    def user_exists_by_username(username):
+        """Vérifie si un utilisateur existe par nom d'utilisateur"""
+        from django.contrib.auth.models import User
+        return User.objects.filter(username=username).exists()
+    
+    @staticmethod
+    def user_exists_by_email(email):
+        """Vérifie si un utilisateur existe par email"""
+        from django.contrib.auth.models import User
+        return User.objects.filter(email=email).exists()
+    
+    @staticmethod
+    def get_user_by_username(username):
+        """Retourne un utilisateur par nom d'utilisateur"""
+        from django.contrib.auth.models import User
+        try:
+            return User.objects.get(username=username)
+        except User.DoesNotExist:
+            return None
 
     @staticmethod
     def is_user_kyc_approved(user):
@@ -451,6 +472,9 @@ class ClientProfile(models.Model):
     ]
     
     # Champs du modèle
+    # UUID pour identification externe
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='clientprofile_profile')
     nom = models.CharField(max_length=255, verbose_name="Nom", null=True, blank=True)
     prenom = models.CharField(max_length=255, verbose_name="Prénom", null=True, blank=True)
@@ -596,6 +620,19 @@ class ClientProfile(models.Model):
     def get_valid_fields(cls):
         """Retourne la liste des champs valides pour la mise à jour"""
         return ['nom', 'prenom', 'phone', 'address', 'birth_date', 'nationality', 'preferred_language']
+    
+    @classmethod
+    def get_client_by_id(cls, client_id):
+        """Retourne un profil client par son ID"""
+        try:
+            return cls.objects.get(id=client_id)
+        except cls.DoesNotExist:
+            return None
+    
+    @classmethod
+    def get_pending_kyc_clients(cls):
+        """Retourne tous les clients en attente de validation KYC"""
+        return cls.objects.filter(kyc_status=cls.KYC_PENDING)
     
     def is_valid_field(self, field_name):
         """Vérifie si un nom de champ est valide pour ce modèle"""
@@ -752,6 +789,9 @@ class MerchantProfile(models.Model):
     ]
     
     # Champs du modèle
+    # UUID pour identification externe
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='merchantprofile_profile')
     company_name = models.CharField(max_length=255, verbose_name="Nom de l'entreprise")
     company_registration = models.CharField(max_length=100, verbose_name="Numéro d'enregistrement", null=True, blank=True)
@@ -945,6 +985,19 @@ class MerchantProfile(models.Model):
         return ['company_name', 'contact_person', 'contact_phone', 'contact_email', 'company_address', 
                 'company_city', 'company_country', 'company_postal_code', 'business_type', 'company_registration', 'tax_id']
     
+    @classmethod
+    def get_merchant_by_id(cls, merchant_id):
+        """Retourne un profil marchand par son ID"""
+        try:
+            return cls.objects.get(id=merchant_id)
+        except cls.DoesNotExist:
+            return None
+    
+    @classmethod
+    def get_pending_kyc_merchants(cls):
+        """Retourne tous les marchands en attente de validation KYC"""
+        return cls.objects.filter(kyc_status=cls.KYC_PENDING)
+    
     def is_valid_field(self, field_name):
         """Vérifie si un nom de champ est valide pour ce modèle"""
         return field_name in self.__class__.get_valid_fields()
@@ -1108,6 +1161,9 @@ class AdminProfile(models.Model):
     ]
     
     # Champs du modèle
+    # UUID pour identification externe
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='adminprofile_profile')
     admin_level = models.IntegerField(verbose_name="Niveau d'administration", choices=ADMIN_LEVEL_CHOICES, default=ADMIN_SUPPORT)
     department = models.CharField(max_length=100, verbose_name="Département", null=True, blank=True)
@@ -1440,6 +1496,9 @@ class KYCValidation(models.Model):
     ]
     
     # Champs du modèle
+    # UUID pour identification externe
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    
     profile_type = models.IntegerField(verbose_name="Type de profil", choices=PROFILE_TYPE_CHOICES, default=PROFILE_CLIENT)
     profile_id = models.PositiveIntegerField(verbose_name="ID du profil")
     kyc_level = models.IntegerField(verbose_name="Niveau KYC", choices=KYC_LEVEL_CHOICES, default=KYC_LEVEL_1)

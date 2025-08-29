@@ -1,5 +1,5 @@
 // Module de notification pour SweetAlert2
-// file static/BES_PHONE/js/module_notification.js
+// file static/YXPLORE_NODE/js/module_notification.js
 
 
 // Configuration par défaut des Toasts
@@ -51,4 +51,19 @@ function showAlertFeedback(message = 'Information', options = {}) {
 
 function showCustomAlert(icon = 'info', title = 'Information', text = '', options = {}) {
     showPopup(icon, title, text, options);
+}
+
+// Fonction showNotification pour la compatibilité avec passenger-management.js
+function showNotification(title, message, icon = 'info', options = {}) {
+    const config = {
+        icon: icon,
+        title: title,
+        text: message,
+        confirmButtonText: 'OK',
+        timer: icon === 'success' ? 3000 : undefined,
+        timerProgressBar: icon === 'success',
+        ...options
+    };
+
+    Swal.fire(config);
 }

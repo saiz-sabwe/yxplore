@@ -101,7 +101,7 @@
 
 </head>
 
-<body class="has-navbar-mobile">
+<body class="has-navbar-mobile{% if user.is_authenticated %} authenticated{% endif %}">
 
 <!-- Header START -->
 {% include 'YXPLORE_NODE/shared/header.html' %}
@@ -114,8 +114,23 @@
 <!-- **************** MAIN CONTENT END **************** -->
 
 {% block param %} {% endblock param %}
-<div id="way" data-url_auth="{% url 'profils:way' %}" hidden></div>
+
+<!-- Data attributes globaux pour AJAX et JavaScript -->
+<div id="way" data-url_auth="{% url 'module_profils:way' %}" hidden></div>
 <div id="csrf" data-csrf="{{ csrf_token }}" hidden></div>
+<div id="user-status" data-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}" hidden></div>
+
+<!-- URLs pour ModuleFlight AJAX -->
+{% url 'flight:flight_search' as flight_search_url %}
+{% url 'flight:flight_book' as flight_book_url %}
+{% url 'flight:flight_cancel' as flight_cancel_url %}
+<div id="flight-search-url" data-url="{{ flight_search_url }}" hidden></div>
+<div id="booking-url" data-url="{{ flight_book_url }}" hidden></div>
+<div id="cancel-url" data-url="{{ flight_cancel_url }}" hidden></div>
+<div id="payment-url" data-url="/flights/pay/" hidden></div>
+<div id="booking-details-url" data-url="/flights/api/bookings/" hidden></div>
+<div id="bookings-url" data-url="/flights/api/bookings/my_bookings/" hidden></div>
+<div id="login-url" data-url="{% url 'module_profils:way' %}" hidden></div>
 
 <!-- ======================= Footer START -->
 {% include 'YXPLORE_NODE/shared/footer.html' %}

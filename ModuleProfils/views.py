@@ -1,4 +1,3 @@
-
 from django.contrib.auth import authenticate, login as auth_login
 from django.contrib.auth.models import User
 from django.http import JsonResponse
@@ -29,7 +28,7 @@ class AuthView(View):
         elif param == "way":
             return self.afficherWay(request)
         else:
-            return redirect('profils:index')
+            return redirect('module_flight:Flight')
 
     def post(self, request, param=None):
         response_data = {}
@@ -55,8 +54,8 @@ class AuthView(View):
     def afficherLogin(self, request):
         """Affiche la page de connexion"""
         if request.user.is_authenticated:
-            return redirect('profils:index')
-        
+            return redirect('module_flight:Flight')
+
         return render(request, 'YXPLORE_NODE/auth/sign-in.html', {
             'title': 'Connexion - YXPLORE'
         })
@@ -64,8 +63,8 @@ class AuthView(View):
     def afficherRegister(self, request):
         """Affiche la page d'inscription"""
         if request.user.is_authenticated:
-            return redirect('profils:index')
-        
+            return redirect('module_flight:Flight')
+
         return render(request, 'YXPLORE_NODE/auth/sign-up.html', {
             'title': 'Inscription - YXPLORE'
         })
@@ -95,7 +94,7 @@ class AuthView(View):
                 return JsonResponse({
                     'resultat': 'SUCCESS',
                     'message': 'Connexion réussie',
-                    'redirect_url': reverse('profils:index')
+                    'redirect_url': reverse('module_flight:Flight')
                 })
             else:
                 return JsonResponse({
@@ -183,7 +182,7 @@ class AuthView(View):
             return JsonResponse({
                 'resultat': 'SUCCESS',
                 'message': 'Compte créé avec succès',
-                'redirect_url': reverse('profils:index')
+                'redirect_url': reverse('module_flight:Flight')
             })
                 
         except Exception as e:
@@ -252,8 +251,8 @@ class KYCView(View):
     def afficherKYCGeneral(self, request):
         """Affiche la page générale de gestion KYC"""
         if not request.user.is_authenticated:
-            return redirect('profils:login')
-        
+            return redirect('module_profils:login')
+
         context = {
             'title': 'Gestion KYC - YXPLORE',
             'user': request.user
@@ -263,8 +262,8 @@ class KYCView(View):
     def afficherKYCClient(self, request, client_id=None):
         """Affiche le KYC d'un client spécifique ou du client connecté"""
         if not request.user.is_authenticated:
-            return redirect('profils:login')
-        
+            return redirect('module_profils:login')
+
         if client_id and AdminProfile.user_has_profile(request.user):
             # Admin qui consulte un client spécifique
             try:
@@ -276,14 +275,14 @@ class KYCView(View):
             # Client qui consulte son propre profil
             # Vérifier d'abord si l'utilisateur est un client
             if not ClientProfile.user_has_profile(request.user):
-                return redirect('profils:index')
-            
+                return redirect('module_flight:Flight')
+
             # Utiliser les nouvelles classes utilitaires
             client_profile = ClientProfile.get_profile_for_user(request.user)
             if not client_profile:
                 # L'utilisateur n'est pas un client, rediriger vers l'index
-                return redirect('profils:index')
-        
+                return redirect('module_profils:index')
+
         context = {
             'title': f'KYC Client - {request.user.username}',
             'profile': client_profile,
@@ -295,8 +294,8 @@ class KYCView(View):
     def afficherKYCMerchant(self, request, merchant_id=None):
         """Affiche le KYC d'un marchand spécifique ou du marchand connecté"""
         if not request.user.is_authenticated:
-            return redirect('profils:login')
-        
+            return redirect('module_profils:login')
+
         if merchant_id and AdminProfile.user_has_profile(request.user):
             # Admin qui consulte un marchand spécifique
             try:
@@ -308,14 +307,14 @@ class KYCView(View):
             # Marchand qui consulte son propre profil
             # Vérifier d'abord si l'utilisateur est un marchand
             if not MerchantProfile.user_has_profile(request.user):
-                return redirect('profils:index')
-            
+                return redirect('module_profils:index')
+
             # Utiliser les nouvelles classes utilitaires
             merchant_profile = MerchantProfile.get_profile_for_user(request.user)
             if not merchant_profile:
                 # L'utilisateur n'est pas un marchand, rediriger vers l'index
-                return redirect('profils:index')
-        
+                return redirect('module_profils:index')
+
         context = {
             'title': f'KYC Marchand - {request.user.username}',
             'profile': merchant_profile,
@@ -327,8 +326,8 @@ class KYCView(View):
     def afficherKYCAdmin(self, request):
         """Affiche la page d'administration KYC pour les admins"""
         if not request.user.is_authenticated or not AdminProfile.user_has_profile(request.user):
-            return redirect('profils:index')
-        
+            return redirect('module_flight:Flight')
+
         # Récupérer les profils en attente de validation
         pending_clients = ClientProfile.objects.filter(kyc_status=ClientProfile.KYC_PENDING)
         pending_merchants = MerchantProfile.objects.filter(kyc_status=MerchantProfile.KYC_PENDING)
@@ -344,8 +343,8 @@ class KYCView(View):
     def afficherValidationKYC(self, request, profile_id):
         """Affiche la page de validation KYC pour un profil spécifique"""
         if not request.user.is_authenticated or not AdminProfile.user_has_profile(request.user):
-            return redirect('profils:index')
-        
+            return redirect('module_flight:Flight')
+
         try:
             # Essayer de trouver le profil (client ou merchant)
             try:

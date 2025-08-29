@@ -113,12 +113,12 @@ Main Content START -->
 						<div class="col-lg-6 order-1">
 							<div class="p-4 p-sm-6">
 								<!-- Logo -->
-								<a href="{% url 'profils:index' %}">
+								<a href="{% url 'module_flight:Flight' %}">
 									<img class="h-50px mb-4" src="{% static 'assets/images/logo-icon.svg' %}" alt="logo">
 								</a>
 								<!-- Title -->
 								<h1 class="mb-2 h3">Créer un compte</h1>
-								<p class="mb-0">Déjà membre ? <a href="{% url 'profils:login' %}">Se connecter</a></p>
+								<p class="mb-0">Déjà membre ? <a href="{% url 'module_profils:login' %}">Se connecter</a></p>
 
 								<!-- Form START -->
 								<form class="mt-4 text-start">
@@ -180,7 +180,7 @@ Main Content END -->
 
 <!-- Back to top -->
 <div class="back-top"></div>
-<div id="way" data-url_auth="{% url 'profils:way' %}" hidden></div>
+<div id="way" data-url_auth="{% url 'module_profils:way' %}" hidden></div>
 <div id="csrf" data-csrf="{{ csrf_token }}" hidden></div>
 
 <!-- jQuery -->

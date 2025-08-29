@@ -19,7 +19,12 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+admin.site.site_header = "PLATEFORME YXPLORE Administration"
+admin.site.site_title = "Portail Administration YXPLORE"
+
 urlpatterns = [
+    path('jet/', include('jet.urls', 'jet')),  # Django JET URLS
+    path('jet/dashboard/', include('jet.dashboard.urls', 'jet-dashboard')),  # Django JET dashboard URLS
     path('admin/', admin.site.urls),
 
     # Modules principaux
@@ -28,9 +33,6 @@ urlpatterns = [
     # path('cars/', include('ModuleCar.urls')),  # Voitures
     path('profils/', include('ModuleProfils.urls')),  # Profils utilisateurs
     # path('payments/', include('ModulePayments.urls')),  # Paiements
-    
-    # Interface principale (temporaire)
-    path('', include('ModuleFlight.urls')),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,613 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock title%}
+{% block extra_css %} {% endblock extra_css%}
+
+{% block extra_javascript %} {% endblock extra_javascript%}
+
+{% block content %}
+
+<!-- **************** MAIN CONTENT START **************** -->
+
+<!-- =======================
+Search START -->
+
+<!-- =======================
+Search START -->
+
+<!-- =======================
+Title and notice board START -->
+<section class="pt-0">
+	<div class="container position-relative">
+
+		<!-- Title and button START -->
+
+		<!-- Title and button END -->
+
+		<!-- Résumé de recherche START -->
+		<div class="bg-primary bg-opacity-10 rounded-3 overflow-hidden mt-4 p-4">
+			<div class="row g-4 align-items-center">
+				<!-- Image -->
+				<div class="col-6 col-md-3 text-center order-1">
+					<img src="{% static 'assets/images/element/11.svg" class="mb-n5' %}" alt="">
+				</div>
+
+				<!-- Content -->
+				<div class="col-md-6 order-md-2">
+					<!-- Title -->
+					<h4>Résultats de recherche</h4>
+                    <div class="mb-3 mb-sm-0">
+						{% if offers and offers|length > 0 %}
+							<h1 class="fs-3">{{ offers|length }} vol{{ offers|length|pluralize:"s" }} disponible{{ offers|length|pluralize:"s" }}</h1>
+						{% else %}
+							<h1 class="fs-3">Résultats de recherche</h1>
+						{% endif %}
+						{% if search_params %}
+							<ul class="nav nav-divider h6 mb-0">
+								<li class="nav-item">{{ search_params.departure_date }}</li>
+								{% if search_params.return_date %}
+									<li class="nav-item">Aller-retour</li>
+								{% else %}
+									<li class="nav-item">Aller simple</li>
+								{% endif %}
+							</ul>
+						{% endif %}
+
+						<!-- Debug temporaire -->
+						<div class="small text-muted mt-2">
+							Debug: offers={{ offers|length }}, total_offers={{ total_offers|default:"Non défini" }}
+						</div>
+					</div>
+					<!-- Content -->
+					<p class="mb-2">
+						<strong>{{ search_params.origin }}</strong> → <strong>{{ search_params.destination }}</strong> | 
+						<strong>{{ search_params.departure_date }}</strong> | 
+						<strong>{{ search_params.passengers }}</strong> passager{{ search_params.passengers|pluralize:"s" }} | 
+						<strong>{{ search_params.cabin_class|title }}</strong>
+					</p>
+					<!-- Button -->
+					<a href="{% url 'module_flight:search_flight' %}" class="btn btn-sm btn-primary mb-0">Nouvelle recherche</a>
+				</div>
+
+				<!-- Image -->
+				<div class="col-6 col-md-3 text-center order-3">
+					<img src="{% static 'assets/images/element/10.svg" class="mb-n5' %}" alt="">
+				</div>
+			</div>
+		</div>
+		<!-- Résumé de recherche END -->
+
+	</div>
+</section>
+<!-- =======================
+Title and notice board END -->
+
+<!-- =======================
+Flight list START -->
+<section class="pt-0">
+	<div class="container">
+		<div class="row">
+
+{#			<!-- Left sidebar START -->#}
+{#			<aside class="col-xl-4 col-xxl-3">#}
+{#				<!-- Responsive offcanvas body START -->#}
+{#					<div class="offcanvas-xl offcanvas-end" tabindex="-1" id="offcanvasSidebar" aria-labelledby="offcanvasSidebarLabel">#}
+{#						<!-- Offcanvas header -->#}
+{#						<div class="offcanvas-header">#}
+{#							<h5 class="offcanvas-title" id="offcanvasSidebarLabel">Filtres avancés</h5>#}
+{#							<button  type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#offcanvasSidebar" aria-label="Close"></button>#}
+{#						</div>#}
+{##}
+{#						<!-- Offcanvas body -->#}
+{#						<div class="offcanvas-body flex-column p-3 p-xl-0">#}
+{#							<form class="rounded-3 shadow">#}
+{#								<!-- Popular filters START -->#}
+{#								<div class="card card-body rounded-0 rounded-top p-4">#}
+{#									<!-- Title -->#}
+{#									<h6 class="mb-2">Filtres populaires</h6>#}
+{#									<!-- Popular filters group -->#}
+{#									<div class="col-12">#}
+{#										<!-- Checkbox -->#}
+{#										<div class="d-flex justify-content-between align-items-center">#}
+{#											<div class="form-check">#}
+{#												<input class="form-check-input" type="checkbox" id="popolarType1">#}
+{#												<label class="form-check-label" for="popolarType1">Tarif remboursable</label>#}
+{#											</div>#}
+{#											<span class="small">(41)</span>#}
+{#										</div>#}
+{#										<!-- Checkbox -->#}
+{#										<div class="d-flex justify-content-between align-items-center">#}
+{#											<div class="form-check">#}
+{#												<input class="form-check-input" type="checkbox" id="popolarType2">#}
+{#												<label class="form-check-label" for="popolarType2">1 escale</label>#}
+{#											</div>#}
+{#											<span class="small">(20)</span>#}
+{#										</div>#}
+{#										<!-- Checkbox -->#}
+{#										<div class="d-flex justify-content-between align-items-center">#}
+{#											<div class="form-check">#}
+{#												<input class="form-check-input" type="checkbox" id="popolarType3">#}
+{#												<label class="form-check-label" for="popolarType3">Départ tardif</label>#}
+{#											</div>#}
+{#											<span class="small">(4)</span>#}
+{#										</div>#}
+{#										<!-- Checkbox -->#}
+{#										<div class="d-flex justify-content-between align-items-center">#}
+{#											<div class="form-check">#}
+{#												<input class="form-check-input" type="checkbox" id="popolarType4">#}
+{#												<label class="form-check-label" for="popolarType4">Sans escale</label>#}
+{#											</div>#}
+{#											<span class="small">(2)</span>#}
+{#										</div>#}
+{#									</div>#}
+{#								</div>#}
+{#								<!-- Popular filters END -->#}
+{##}
+{#								<hr class="my-0"> <!-- Divider -->#}
+{##}
+{#								<!-- Price START -->#}
+{#								<div class="card card-body rounded-0 p-4">#}
+{#									<!-- Title -->#}
+{#									<h6 class="mb-2">Prix</h6>#}
+{#									<!-- Price group -->#}
+{#									<div class="position-relative">#}
+{#										<div class="noui-wrapper">#}
+{#											<div class="d-flex justify-content-between">#}
+{#												<input type="text" class="text-body input-with-range-min">#}
+{#												<input type="text" class="text-body input-with-range-max">#}
+{#											</div>#}
+{#											<div class="noui-slider-range mt-2" data-range-min='500' data-range-max='2000' data-range-selected-min='700' data-range-selected-max='1500'></div>#}
+{#										</div>#}
+{#									</div>#}
+{#								</div>#}
+{#								<!-- Price END -->#}
+{##}
+{#								<hr class="my-0"> <!-- Divider -->#}
+{##}
+{#								<!-- Onward stops START -->#}
+{#								<div class="card card-body rounded-0 p-4">#}
+{#									<!-- Title -->#}
+{#									<h6 class="mb-2">Escales aller</h6>#}
+{#									<!-- Onward stops group -->#}
+{#									<ul class="list-inline mb-0 g-3">#}
+{#										<!-- Item -->#}
+{#										<li class="list-inline-item mb-0">#}
+{#											<input type="checkbox" class="btn-check" id="btn-check-c1">#}
+{#											<label class="btn btn-sm btn-light btn-primary-soft-check" for="btn-check-c1">Direct</label>#}
+{#										</li>#}
+{#										<!-- Item -->#}
+{#										<li class="list-inline-item mb-0">#}
+{#											<input type="checkbox" class="btn-check" id="btn-check-c2">#}
+{#											<label class="btn btn-sm btn-light btn-primary-soft-check" for="btn-check-c2">1 escale</label>#}
+{#										</li>#}
+{#										<!-- Item -->#}
+{#										<li class="list-inline-item mb-0">#}
+{#											<input type="checkbox" class="btn-check" id="btn-check-c3">#}
+{#											<label class="btn btn-sm btn-light btn-primary-soft-check" for="btn-check-c3">2+ escales</label>#}
+{#										</li>#}
+{#									</ul>#}
+{#								</div>#}
+{#								<!-- Onward stops END -->#}
+{##}
+{#								<hr class="my-0"> <!-- Divider -->#}
+{##}
+{#								<!-- Return Stops START -->#}
+{#								<div class="card card-body rounded-0 p-4">#}
+{#									<!-- Title -->#}
+{#									<h6 class="mb-2">Escales retour</h6>#}
+{#									<!-- Return Stops group -->#}
+{#									<ul class="list-inline mb-0 g-3">#}
+{#										<!-- Item -->#}
+{#										<li class="list-inline-item mb-0">#}
+{#											<input type="checkbox" class="btn-check" id="btn-check-6">#}
+{#											<label class="btn btn-sm btn-light btn-primary-soft-check" for="btn-check-6">Direct</label>#}
+{#										</li>#}
+{#										<!-- Item -->#}
+{#										<li class="list-inline-item mb-0">#}
+{#											<input type="checkbox" class="btn-check" id="btn-check-7">#}
+{#											<label class="btn btn-sm btn-light btn-primary-soft-check" for="btn-check-7">1 escale</label>#}
+{#										</li>#}
+{#										<!-- Item -->#}
+{#										<li class="list-inline-item mb-0">#}
+{#											<input type="checkbox" class="btn-check" id="btn-check-8">#}
+{#											<label class="btn btn-sm btn-light btn-primary-soft-check" for="btn-check-8">2+ escales</label>#}
+{#										</li>#}
+{#									</ul>#}
+{#								</div>#}
+{#								<!-- Return Stops END -->#}
+{##}
+{#								<hr class="my-0"> <!-- Divider -->#}
+{##}
+{#								<!-- Preferred Airline START -->#}
+{#								<div class="card card-body rounded-0 p-4">#}
+{#									<!-- Title -->#}
+{#									<h6 class="mb-2">Compagnie aérienne préférée</h6>#}
+{#									<!-- Preferred Airline group -->#}
+{#									<div class="col-12">#}
+{#										<!-- Checkbox -->#}
+{#										<div class="form-check">#}
+{#											<input class="form-check-input" type="checkbox" value="" id="airlineType1">#}
+{#											<label class="form-check-label" for="airlineType1">#}
+{#												<img src="{% static 'assets/images/element/12.svg" class="h-15px fa-fw me-2' %}" alt="">Blogzine#}
+{#											</label>#}
+{#										</div>#}
+{#										<!-- Checkbox -->#}
+{#										<div class="form-check">#}
+{#											<input class="form-check-input" type="checkbox" value="" id="airlineType2">#}
+{#											<label class="form-check-label" for="airlineType2">#}
+{#												<img src="{% static 'assets/images/element/13.svg" class="h-15px fa-fw me-2' %}" alt="">Wizixo#}
+{#											</label>#}
+{#										</div>#}
+{#										<!-- Checkbox -->#}
+{#										<div class="form-check">#}
+{#											<input class="form-check-input" type="checkbox" value="" id="airlineType3">#}
+{#											<label class="form-check-label" for="airlineType3">#}
+{#												<img src="{% static 'assets/images/element/14.svg" class="h-15px fa-fw me-2' %}" alt="">Folio airline#}
+{#											</label>#}
+{#										</div>#}
+{#										<!-- Checkbox -->#}
+{#										<div class="form-check">#}
+{#											<input class="form-check-input" type="checkbox" value="" id="airlineType4">#}
+{#											<label class="form-check-label" for="airlineType4">#}
+{#												<img src="{% static 'assets/images/element/15.svg" class="h-15px fa-fw me-2' %}" alt="">Booking#}
+{#											</label>#}
+{#										</div>#}
+{##}
+{#										<!-- Collapse body -->#}
+{#										<div class="multi-collapse collapse" id="airlineCollapes">#}
+{#											<!-- Checkbox -->#}
+{#											<div class="form-check">#}
+{#												<input class="form-check-input" type="checkbox" value="" id="airlineType7">#}
+{#												<label class="form-check-label" for="airlineType7">#}
+{#													<img src="{% static 'assets/images/element/15.svg" class="h-15px fa-fw me-2' %}" alt="">Formex#}
+{#												</label>#}
+{#											</div>#}
+{#											<!-- Checkbox -->#}
+{#											<div class="form-check">#}
+{#												<input class="form-check-input" type="checkbox" value="" id="airlineType8">#}
+{#												<label class="form-check-label" for="airlineType8">#}
+{#													<img src="{% static 'assets/images/element/13.svg" class="h-15px fa-fw me-2' %}" alt="">Realty#}
+{#												</label>#}
+{#											</div>#}
+{#											<!-- Checkbox -->#}
+{#											<div class="form-check">#}
+{#												<input class="form-check-input" type="checkbox" value="" id="airlineType9">#}
+{#												<label class="form-check-label" for="airlineType9">#}
+{#													<img src="{% static 'assets/images/element/12.svg" class="h-15px fa-fw me-2' %}" alt="">rocyon#}
+{#												</label>#}
+{#											</div>#}
+{#										</div>#}
+{#										<!-- Collapse button -->#}
+{#										<a class="p-0 mb-0 mt-2 btn-more d-flex align-items-center collapsed" data-bs-toggle="collapse" href="#airlineCollapes" role="button" aria-expanded="false" aria-controls="airlineCollapes">#}
+{#											Voir <span class="see-more ms-1">plus</span><span class="see-less ms-1">moins</span><i class="fa-solid fa-angle-down ms-2"></i>#}
+{#										</a>#}
+{#									</div>#}
+{#								</div>#}
+{#								<!-- Preferred Airline END -->#}
+{##}
+{#								<hr class="my-0"> <!-- Divider -->#}
+{##}
+{#								<!-- Layover Airport START -->#}
+{#								<div class="card card-body rounded-0 rounded-bottom p-4">#}
+{#									<!-- Title -->#}
+{#									<h6 class="mb-2">Aéroport d'escale</h6>#}
+{#									<!-- Layover Airport group -->#}
+{#									<div class="col-12">#}
+{#										<!-- Checkbox -->#}
+{#										<div class="d-flex justify-content-between align-items-center">#}
+{#											<div class="form-check">#}
+{#												<input class="form-check-input" type="checkbox" value="" id="lauoverType1">#}
+{#												<label class="form-check-label" for="lauoverType1">Abu Dhabi</label>#}
+{#											</div>#}
+{#											<span class="small">(01)</span>#}
+{#										</div>#}
+{#										<!-- Checkbox -->#}
+{#										<div class="d-flex justify-content-between align-items-center">#}
+{#											<div class="form-check">#}
+{#												<input class="form-check-input" type="checkbox" value="" id="lauoverType2">#}
+{#												<label class="form-check-label" for="lauoverType2">Amsterdam</label>#}
+{#											</div>#}
+{#											<span class="small">(02)</span>#}
+{#										</div>#}
+{#										<!-- Checkbox -->#}
+{#										<div class="d-flex justify-content-between align-items-center">#}
+{#											<div class="form-check">#}
+{#												<input class="form-check-input" type="checkbox" value="" id="lauoverType3">#}
+{#												<label class="form-check-label" for="lauoverType3">Chicago</label>#}
+{#											</div>#}
+{#											<span class="small">(02)</span>#}
+{#										</div>#}
+{#										<!-- Checkbox -->#}
+{#										<div class="d-flex justify-content-between align-items-center">#}
+{#											<div class="form-check">#}
+{#												<input class="form-check-input" type="checkbox" value="" id="lauoverType4">#}
+{#												<label class="form-check-label" for="lauoverType4">Doha</label>#}
+{#											</div>#}
+{#											<span class="small">(03)</span>#}
+{#										</div>#}
+{##}
+{#										<!-- Collapse body -->#}
+{#										<div class="multi-collapse collapse" id="lauoverCollapes">#}
+{#											<!-- Checkbox -->#}
+{#											<div class="d-flex justify-content-between align-items-center">#}
+{#												<div class="form-check">#}
+{#													<input class="form-check-input" type="checkbox" value="" id="lauoverType7">#}
+{#													<label class="form-check-label" for="lauoverType7">Dubai</label>#}
+{#												</div>#}
+{#												<span class="small">(04)</span>#}
+{#											</div>#}
+{#											<!-- Checkbox -->#}
+{#											<div class="d-flex justify-content-between align-items-center">#}
+{#												<div class="form-check">#}
+{#													<input class="form-check-input" type="checkbox" value="" id="lauoverType8">#}
+{#													<label class="form-check-label" for="lauoverType8">New Delhi</label>#}
+{#												</div>#}
+{#												<span class="small">(15)</span>#}
+{#											</div>#}
+{#											<!-- Checkbox -->#}
+{#											<div class="d-flex justify-content-between align-items-center">#}
+{#												<div class="form-check">#}
+{#													<input class="form-check-input" type="checkbox" value="" id="lauoverType9">#}
+{#													<label class="form-check-label" for="lauoverType9">Paris</label>#}
+{#												</div>#}
+{#												<span class="small">(04)</span>#}
+{#											</div>#}
+{#										</div>#}
+{#										<!-- Collapse button -->#}
+{#										<a class="btn-more d-flex align-items-center collapsed p-0 mb-0 mt-2" data-bs-toggle="collapse" href="#lauoverCollapes" role="button" aria-expanded="false" aria-controls="lauoverCollapes">#}
+{#											Voir <span class="see-more ms-1">plus</span><span class="see-less ms-1">moins</span><i class="fa-solid fa-angle-down ms-2"></i>#}
+{#										</a>#}
+{#									</div>#}
+{#								</div>#}
+{#								<!-- Layover Airport END -->#}
+{#							</form><!-- Form End -->#}
+{#						</div>#}
+{##}
+{#						<!-- Buttons -->#}
+{#						<div class="d-flex justify-content-between p-2 p-xl-0 mt-xl-4">#}
+{#							<button class="btn btn-link p-0 mb-0">Tout effacer</button>#}
+{#							<button class="btn btn-primary mb-0">Filtrer les résultats</button>#}
+{#						</div>#}
+{##}
+{#					</div>#}
+{#				<!-- Responsive offcanvas body END -->#}
+{#			</aside>#}
+{#			<!-- Left sidebar END -->#}
+
+			<!-- Main content START -->
+			<div class="col-xl-12 col-xxl-12">
+				<div class="vstack gap-4">
+					
+					{% if error %}
+						<!-- Message d'erreur START -->
+						<div class="card border border-danger">
+							<div class="card-body p-5 text-center">
+								<!-- Icon -->
+								<div class="icon-lg bg-danger bg-opacity-10 text-danger rounded-circle mx-auto mb-3">
+									<i class="fa-solid fa-exclamation-triangle"></i>
+								</div>
+								<!-- Title -->
+								<h4>Erreur de recherche</h4>
+								<!-- Content -->
+								<p class="mb-4">{{ error }}</p>
+								<!-- Button -->
+								<a href="{% url 'module_flight:search_flight' %}" class="btn btn-primary">Nouvelle recherche</a>
+							</div>
+						</div>
+						<!-- Message d'erreur END -->
+					{% elif offers %}
+						{% for offer in offers %}
+						<!-- Ticket item START -->
+						<div class="card border">
+							<!-- card-body START -->
+							<div class="card-body p-4 pb-0">
+								<div class="row g-4">
+									<!-- Air line name -->
+									<div class="col-md-3">
+										<!-- Image -->
+										{% if offer.owner.logo_symbol_url %}
+											<img src="{{ offer.owner.logo_symbol_url }}" class="w-80px mb-3" alt="{{ offer.owner.name }}" style="max-height: 40px;">
+										{% else %}
+											<img src="{% static 'assets/images/element/09.svg' %}" class="w-80px mb-3" alt="">
+										{% endif %}
+										<!-- Title -->
+										<h6 class="fw-normal mb-0">{{ offer.owner.name|default:"Compagnie aérienne" }}</h6>
+										<h6 class="fw-normal mb-0 text-muted">{{ offer.owner.iata_code }}</h6>
+										<small class="text-muted">{{ offer.id|slice:":10" }}</small>
+									</div>
+
+									<!-- Airport detail -->
+									<div class="col-sm-4 col-md-3">
+										<!-- Title -->
+										<h4>{{ offer.slices.0.segments.0.departing_at|slice:"11:16"|default:"--:--" }}</h4>
+										<h6 class="mb-0">{{ offer.slices.0.segments.0.departing_at|slice:":10"|date:"D, d M Y" }}</h6>
+										<p class="mb-0">
+											<strong>{{ offer.slices.0.origin.iata_code }}</strong> - {{ offer.slices.0.origin.name|default:"Aéroport" }}
+											{% if offer.slices.0.origin.terminal %}
+												<br><small class="text-muted">Terminal {{ offer.slices.0.origin.terminal }}</small>
+											{% endif %}
+										</p>
+									</div>
+
+									<!-- Airport detail -->
+									<div class="col-sm-4 col-md-3">
+										<!-- Title -->
+										<h4>{{ offer.slices.0.segments.0.arriving_at|slice:"11:16"|default:"--:--" }}</h4>
+										<h6 class="mb-0">{{ offer.slices.0.segments.0.arriving_at|slice:":10"|date:"D, d M Y" }}</h6>
+										<p class="mb-0">
+											<strong>{{ offer.slices.0.destination.iata_code }}</strong> - {{ offer.slices.0.destination.name|default:"Aéroport" }}
+											{% if offer.slices.0.destination.terminal %}
+												<br><small class="text-muted">Terminal {{ offer.slices.0.destination.terminal }}</small>
+											{% endif %}
+										</p>
+									</div>
+
+									<!-- Price -->
+									<div class="col-sm-4 col-md-3">
+										<!-- Price -->
+										<h4>{{ offer.total_amount }} {{ offer.total_currency }}</h4>
+										{% if offer.base_amount and offer.tax_amount %}
+											<small class="text-muted">
+												Base: {{ offer.base_amount }} {{ offer.base_currency }}<br>
+												Taxes: {{ offer.tax_amount }} {{ offer.tax_currency }}
+											</small>
+										{% endif %}
+										<a href="{% url 'module_flight:flight_detail' offer.id %}" class="btn btn-dark">Réserver maintenant</a>
+										<button class="btn btn-link text-decoration-underline p-0 mb-0" data-bs-toggle="modal" data-bs-target="#flightdetail">
+											<i class="bi bi-eye-fill me-1"></i>Détails du vol
+										</button>
+									</div>
+
+								</div>
+							</div>
+							<!-- card-body END -->
+
+							<!-- card footer -->
+							<div class="card-footer p-4">
+								<div class="bg-light p-2 rounded-2">
+									<ul class="list-inline d-sm-flex justify-content-sm-between mb-0 mx-4">
+										<li class="list-inline-item text-danger">
+											Plus que {{ offer.available_seats|default:10 }} places disponibles
+										</li>
+										<li class="list-inline-item">
+											Durée totale : {{ offer.slices.0.duration|default:"--" }}
+											{% if offer.slices.0.stops > 0 %}
+												({{ offer.slices.0.stops }} escale{{ offer.slices.0.stops|pluralize:"s" }})
+											{% else %}
+												(Direct)
+											{% endif %}
+										</li>
+										<li class="list-inline-item text-success">
+											{% if offer.conditions.refundable %}
+												Remboursable
+											{% elif offer.conditions.changeable %}
+												Modifiable
+											{% else %}
+												Non modifiable
+											{% endif %}
+										</li>
+									</ul>
+								</div>
+								
+								<!-- Informations supplémentaires -->
+								<div class="row mt-3">
+									<div class="col-md-6">
+										<small class="text-muted">
+											{% if offer.total_emissions_kg %}
+												🌱 {{ offer.total_emissions_kg }} kg CO₂
+											{% endif %}
+											{% if offer.slices.0.fare_brand_name %}
+												• {{ offer.slices.0.fare_brand_name }}
+											{% endif %}
+										</small>
+									</div>
+									<div class="col-md-6 text-end">
+										<small class="text-muted">
+											{% if offer.payment.requires_instant_payment %}
+												💳 Paiement immédiat requis
+											{% endif %}
+											{% if offer.passenger_identity_documents_required %}
+												📋 Documents d'identité requis
+											{% endif %}
+										</small>
+									</div>
+								</div>
+							</div>
+						</div>
+						<!-- Ticket item END -->
+						{% endfor %}
+					{% else %}
+						<!-- Aucun résultat START -->
+						<div class="card border">
+							<div class="card-body p-5 text-center">
+								<!-- Icon -->
+								<div class="icon-lg bg-primary bg-opacity-10 text-primary rounded-circle mx-auto mb-3">
+									<i class="fa-solid fa-plane"></i>
+								</div>
+								<!-- Title -->
+								<h4>Aucun vol trouvé</h4>
+								<!-- Content -->
+								<p class="mb-4">Aucun vol disponible pour votre recherche. Essayez de modifier vos critères ou de changer les dates.</p>
+								<!-- Button -->
+								<a href="{% url 'module_flight:search_flight' %}" class="btn btn-primary">Nouvelle recherche</a>
+							</div>
+						</div>
+						<!-- Aucun résultat END -->
+					{% endif %}
+
+
+
+
+
+
+
+				</div>
+			</div>
+			<!-- Main content END -->
+		</div> <!-- Row END -->
+	</div>
+</section>
+<!-- =======================
+Flight list END -->
+
+
+<!-- **************** MAIN CONTENT END **************** -->
+ {% endblock content %}
+
+{% block param %} {% endblock param %}
+
+{% block javascript %}
+<!-- Import obligatoire du module notifications -->
+<script src="{% static 'YXPLORE_NODE/js/module_notification.js' %}"></script>
+
+<!-- Data attributes requis -->
+<div id="csrf" data-csrf="{{ csrf_token }}" hidden></div>
+<div id="user-status" data-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}" hidden></div>
+
+<!-- Script pour afficher les erreurs dans SweetAlert -->
+{% if error %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Vérifier si le module de notification est disponible
+    if (typeof showNotification === 'function') {
+        let errorType = '{{ error_type|default:"general" }}';
+        let errorMessage = '{{ error|escapejs }}';
+        
+        let title = 'Erreur de recherche';
+        let icon = 'error';
+        
+        // Personnaliser selon le type d'erreur
+        switch(errorType) {
+            case 'date_format':
+                title = 'Format de date invalide';
+                icon = 'warning';
+                break;
+            case 'duffel_api':
+                title = 'Erreur API Duffel';
+                icon = 'error';
+                break;
+            case 'internal_error':
+                title = 'Erreur interne';
+                icon = 'error';
+                break;
+        }
+        
+        showNotification({
+            title: title,
+            message: errorMessage,
+            type: icon,
+            duration: 8000
+        });
+    } else {
+        // Fallback si le module n'est pas disponible
+        console.error('Module de notification non disponible');
+    }
+});
+</script>
+{% endif %}
+
+<!-- Scripts JavaScript ModuleFlight -->
+<script src="{% static 'ModuleFlight/js/flight-search.js' %}"></script>
+<script src="{% static 'ModuleFlight/js/flight-booking.js' %}"></script>
+{% endblock javascript %}

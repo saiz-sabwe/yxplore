@@ -31,7 +31,8 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 FIRST_APPS = [
-    'channels',
+    'jet.dashboard',
+    'jet',
     "daphne",
 ]
 
@@ -105,23 +106,23 @@ ASGI_APPLICATION = 'YXPLORE_NODE.asgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'bright_db',
-        'USER': 'bright_user',
-        'PASSWORD': 'bright_pass',
-        'HOST': 'pgsql',
-        'PORT': '5432',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'yxplore_db',
+#         'USER': 'yxplore_user',
+#         'PASSWORD': 'bright_pass',
+#         'HOST': 'pgsql',
+#         'PORT': '5432',
+#     }
+# }
 
 
 # Password validation
@@ -158,7 +159,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 LOGIN_URL = '/profils/login/'          # nom de l'URL ou chemin absolu
-LOGIN_REDIRECT_URL = '/profils/'            # où envoyer après login
+LOGIN_REDIRECT_URL = '/flights/'            # où envoyer après login
 LOGOUT_REDIRECT_URL = '/profils/login/'
 
 STATIC_URL = 'static/'
@@ -178,3 +179,78 @@ MEDIA_URL = '/media/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ===== CONFIGURATION API DUFFEL v2 =====
+DUFFEL_API_KEY = 'duffel_test_vgVEWNUb3JHRDAIcLsYXoFQsEV7qMRPbFCx-XSL-CX_'  # Token de test
+DUFFEL_API_KEY_LIVE = None  # Token de production (à configurer)
+DUFFEL_BASE_URL = 'https://api.duffel.com/air'
+DUFFEL_API_VERSION = 'v2'
+
+# Mode de fonctionnement Duffel
+DUFFEL_LIVE_MODE = False  # False = test, True = production
+
+# Configuration des timeouts et rate limits
+DUFFEL_CONFIG = {
+    'REQUEST_TIMEOUT': 30,  # Timeout des requêtes en secondes
+    'RATE_LIMIT_PER_MINUTE': 60,  # Limite de requêtes par minute
+    'OFFER_CACHE_TTL': 900,  # Cache des offres en secondes (15 min)
+    'MAX_RETRIES': 3,  # Nombre de tentatives en cas d'échec
+    'RETRY_DELAY': 1,  # Délai entre les tentatives en secondes
+}
+
+# Types de paiement supportés par Duffel
+DUFFEL_PAYMENT_TYPES = {
+    'BALANCE': 'balance',  # Paiement par solde (défaut)
+    'ARC_BSP_CASH': 'arc_bsp_cash',  # Pour agents IATA
+}
+
+# Configuration spécifique au module Flight
+FLIGHT_CONFIG = {
+    'DEFAULT_COMMISSION_RATE': 5.0,  # Taux de commission par défaut en %
+    'MAX_PASSENGERS_PER_BOOKING': 9,  # Limite Duffel
+    'BOOKING_EXPIRY_HOURS': 24,  # Expiration des réservations en heures
+    'CURRENCY_DEFAULT': 'EUR',
+    'SEARCH_RESULTS_LIMIT': 50,
+    'OFFER_EXPIRY_BUFFER': 300,  # Buffer avant expiration offre (5 min)
+    'AUTO_CONFIRM_BOOKINGS': True,  # Confirmation automatique des réservations
+    'CACHE_SEARCH_RESULTS': True,  # Cache des résultats de recherche
+    
+    # Classes de cabine supportées par Duffel
+    'CABIN_CLASSES': {
+        'economy': 'economy',
+        'premium_economy': 'premium_economy', 
+        'business': 'business',
+        'first': 'first'
+    },
+    
+    # Types de passagers Duffel
+    'PASSENGER_TYPES': {
+        'adult': 'adult',
+        'child': 'child',
+        'infant_without_seat': 'infant_without_seat'
+    }
+}
+
+# Configuration des logs pour le module Flight
+import os
+LOGS_DIR = BASE_DIR / 'logs'
+if not LOGS_DIR.exists():
+    LOGS_DIR.mkdir(exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'ModuleFlight': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}

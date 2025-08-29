@@ -4,7 +4,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-from .models import UserProfileManager, ProfileUtils
+from .models import UserProfileManager, ClientProfile, MerchantProfile, ProfileUtils
 
 def role_required(allowed_roles):
     """
@@ -60,7 +60,8 @@ def kyc_approved_required(view_func):
         # Vérifier le statut KYC selon le type de profil
         if UserProfileManager.user_has_kyc_features(user):
             kyc_status = UserProfileManager.get_user_kyc_status(user)
-            if kyc_status == 0:  # KYC_PENDING
+            # Vérifier si le statut KYC est en attente (valeur partagée entre Client et Merchant)
+            if kyc_status == ClientProfile.KYC_PENDING:  # ou MerchantProfile.KYC_PENDING (même valeur)
                 if request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest':
                     return JsonResponse({
                         'resultat': 'FAIL',
